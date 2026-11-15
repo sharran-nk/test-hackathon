@@ -2,14 +2,14 @@ const request = require('supertest');
 const { createApp } = require('../server/index');
 const { loadConfig } = require('../server/config');
 
-const { SECRET, tokenFor } = require('./helpers');
+const { SECRET, tokenFor, lookupUser } = require('./helpers');
 
 const silent = { info() {}, warn() {}, error() {} };
 const config = loadConfig({ JWT_SECRET: SECRET });
-// KEY is a valid manager token. These tests run without MongoDB, so the signature is what counts.
+// KEY is a valid manager token. These tests run without MongoDB, so createApp gets a stub account lookup.
 const KEY = tokenFor(config, 'manager');
 // clientDir: null so these API tests never depend on whether the React build exists.
-const app = createApp(config, { logger: silent, clientDir: null });
+const app = createApp(config, { logger: silent, clientDir: null, lookupUser });
 
 describe('scaffold', () => {
   test('GET /health returns ok without a key', async () => {
@@ -107,7 +107,7 @@ describe('token check does not depend on the body', () => {
   ];
 
   test.each(bodies)('wrong token + %s is always 401', async (_, raw) => {
-    const small = createApp(loadConfig({ JWT_SECRET: SECRET, MAX_BODY_KB: '1' }), { logger: silent, clientDir: null });
+    const small = createApp(loadConfig({ JWT_SECRET: SECRET, MAX_BODY_KB: '1' }), { logger: silent, clientDir: null, lookupUser });
     const res = await request(small).post('/api/check')
       .set('Authorization', WRONG).set('Content-Type', 'application/json').send(raw);
     expect(res.status).toBe(401);
@@ -152,7 +152,7 @@ describe('input errors', () => {
   });
 
   test('a body over MAX_BODY_KB gives 413', async () => {
-    const small = createApp(loadConfig({ JWT_SECRET: SECRET, MAX_BODY_KB: '1' }), { logger: silent });
+    const small = createApp(loadConfig({ JWT_SECRET: SECRET, MAX_BODY_KB: '1' }), { logger: silent, lookupUser });
     const res = await post({ ...good, shifts: SHIFTS + 'x'.repeat(2000) }, KEY, small);
     expect(res.status).toBe(413);
     expect(res.body.error.code).toBe('TOO_LARGE');
@@ -173,7 +173,7 @@ describe('unexpected errors', () => {
     const lines = [];
     const capture = { info: (m, f) => lines.push(JSON.stringify([m, f])), warn() {}, error: (m, f) => lines.push(JSON.stringify([m, f])) };
     jest.spyOn(rules, 'runCheck').mockImplementation(() => { throw new Error(`boom ${KEY} Priya Nair`); });
-    const res = await post(good, KEY, createApp(config, { logger: capture }));
+    const res = await post(good, KEY, createApp(config, { logger: capture, lookupUser }));
     expect(res.status).toBe(500);
     expect(res.body.error.code).toBe('INTERNAL');
     expect(res.body.error.requestId).toEqual(expect.any(String));
@@ -186,7 +186,7 @@ describe('unexpected errors', () => {
   test('the request log has no body, key or names', async () => {
     const lines = [];
     const capture = { info: (m, f) => lines.push(JSON.stringify([m, f])), warn() {}, error() {} };
-    await post(good, KEY, createApp(config, { logger: capture }));
+    await post(good, KEY, createApp(config, { logger: capture, lookupUser }));
     expect(lines).toHaveLength(1);
     expect(lines[0]).toContain('"/api/check"');
     expect(lines[0]).not.toMatch(new RegExp(`${KEY}|Priya|E001|A1`));
@@ -200,7 +200,7 @@ describe('serving the React build', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'client-dist-'));
   fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>Roster Checker</title>');
   fs.writeFileSync(path.join(dir, 'app.js'), 'console.log(1)');
-  const withClient = createApp(config, { logger: silent, clientDir: dir });
+  const withClient = createApp(config, { logger: silent, clientDir: dir, lookupUser });
   afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
 
   test('GET / returns the page, with a CSP header', async () => {
@@ -222,7 +222,7 @@ describe('serving the React build', () => {
   });
 
   test('without a build, / is a JSON 404 and the API still works', async () => {
-    const none = createApp(config, { logger: silent, clientDir: path.join(dir, 'missing') });
+    const none = createApp(config, { logger: silent, clientDir: path.join(dir, 'missing'), lookupUser });
     expect((await request(none).get('/')).status).toBe(404);
     expect((await request(none).get('/health')).status).toBe(200);
   });

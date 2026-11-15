@@ -138,16 +138,24 @@ describe('login', () => {
     expect(all).not.toContain(ok.body.token);
   });
 
-  test('login is 503 while MongoDB is down; checking with an existing token still works', async () => {
+  test('FAIL CLOSED: with MongoDB down, login and every protected request are 503, even with a valid token', async () => {
     await db.disconnect();
     try {
       const res = await login('manager', 'manager123');
       expect(res.status).toBe(503);
       expect(res.body.error.code).toBe('AUTH_UNAVAILABLE');
-      const checked = await check(seed);
-      expect(checked.status).toBe(200);
-      expect(checked.body).toMatchObject({ saved: false, resultId: null });
-      expect(checked.body.findings).toHaveLength(6);
+      const calls = [
+        await check(seed), // a perfectly valid manager token and roster
+        await get('/api/history', mgr),
+        await get('/api/auth/me', mgr),
+        await get('/api/me/schedule', emp.E001),
+        await request(app).post('/api/auth/logout').set(bearer(mgr)),
+      ];
+      for (const r of calls) {
+        expect(r.status).toBe(503);
+        expect(r.body.error.code).toBe('AUTH_UNAVAILABLE');
+        expect(r.body.findings).toBeUndefined();
+      }
     } finally {
       await db.connect(mongod.getUri('auth'), logger);
     }
@@ -174,6 +182,20 @@ describe('password storage', () => {
     expect((await User.findOne({ username: 'manager' }).lean()).passwordHash).toBe(before);
     expect((await login('manager', 'manager123')).status).toBe(200);
     expect((await login('manager', 'a-different-password')).status).toBe(401);
+  });
+});
+
+describe('account lookup errors', () => {
+  test('a database error during the account check is 503 (never "token looks fine") and only the error name is logged', async () => {
+    jest.spyOn(User, 'findById').mockImplementationOnce(() => { throw new Error('mongodb://u:secretpw@host exploded'); });
+    const res = await get('/api/auth/me', mgr);
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('AUTH_UNAVAILABLE');
+    expect(JSON.stringify(res.body)).not.toContain('secretpw');
+    expect(logs.join('')).toContain('auth_lookup_failed');
+    expect(logs.join('')).not.toContain('secretpw');
+    jest.restoreAllMocks();
+    expect((await get('/api/auth/me', mgr)).status).toBe(200);
   });
 });
 
@@ -391,7 +413,7 @@ describe('employee data isolation', () => {
     try {
       const res = await get('/api/me/schedule', token);
       expect(res.status).toBe(503);
-      expect(res.body.error.code).toBe('UNAVAILABLE');
+      expect(res.body.error.code).toBe('AUTH_UNAVAILABLE');
     } finally {
       await db.connect(mongod.getUri('auth'), logger);
     }

@@ -32,7 +32,21 @@ function revoke(payload) {
 // password take about the same time.
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
 
-function requireAuth(config, logger) {
+// Looks the account up in MongoDB. Throws (name "AccountCheckUnavailable") when the database is
+// not connected. Tests pass their own lookup so they can run without a database.
+async function lookupUserInDb(id) {
+  if (!db.isUp()) {
+    const err = new Error('database not connected');
+    err.name = 'AccountCheckUnavailable';
+    throw err;
+  }
+  return User.findById(id).select('role active employeeId').lean();
+}
+
+// FAIL CLOSED: every protected request must verify the account. If that cannot be done (MongoDB
+// down or erroring) the answer is 503, never "the token looks fine". A valid signature alone is
+// not enough: the account must exist, be active, and still have the role and employee ID in the token.
+function requireAuth(config, logger, lookupUser = lookupUserInDb) {
   return async (req, res, next) => {
     const match = /^Bearer (.+)$/.exec(req.get('authorization') || '');
     if (!match) return deny(res);
@@ -43,23 +57,22 @@ function requireAuth(config, logger) {
       return deny(res, err.name === 'TokenExpiredError' ? 'Session expired. Sign in again.' : undefined);
     }
     if (!payload.jti || !payload.sub || revoked.has(payload.jti)) return deny(res);
-    const user = { id: payload.sub, username: payload.username, role: payload.role, employeeId: payload.employeeId };
 
-    // While MongoDB is up the account must still exist and be active, and its role must match the
-    // token. While it is down the signed token is trusted, so checking a roster still works.
-    if (db.isUp()) {
-      try {
-        const record = await User.findById(payload.sub).select('role active employeeId').lean();
-        if (!record || record.active === false || record.role !== payload.role
-          || (record.employeeId || undefined) !== (payload.employeeId || undefined)) {
-          return deny(res);
-        }
-      } catch (err) {
-        if (err.name === 'CastError') return deny(res);
-        logger.error('auth_lookup_failed', { requestId: req.id, errorName: err.name });
-      }
+    let record;
+    try {
+      record = await lookupUser(payload.sub);
+    } catch (err) {
+      if (err.name === 'CastError') return deny(res);
+      if (err.name !== 'AccountCheckUnavailable') logger.error('auth_lookup_failed', { requestId: req.id, errorName: err.name });
+      return res.status(503).json({
+        error: { code: 'AUTH_UNAVAILABLE', message: 'Your account cannot be verified right now (database not reachable). Try again shortly.' },
+      });
     }
-    req.user = user;
+    if (!record || record.active === false || record.role !== payload.role
+      || (record.employeeId || undefined) !== (payload.employeeId || undefined)) {
+      return deny(res);
+    }
+    req.user = { id: payload.sub, username: payload.username, role: record.role, employeeId: record.employeeId };
     req.token = payload;
     return next();
   };
@@ -72,4 +85,4 @@ const requireRole = (...roles) => (req, res, next) => {
   return next();
 };
 
-module.exports = { signToken, requireAuth, requireRole, revoke, DUMMY_HASH };
+module.exports = { lookupUserInDb, signToken, requireAuth, requireRole, revoke, DUMMY_HASH };

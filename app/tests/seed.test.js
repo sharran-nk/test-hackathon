@@ -7,12 +7,12 @@ const request = require('supertest');
 const { createApp } = require('../server/index');
 const { loadConfig } = require('../server/config');
 
-const { SECRET, tokenFor } = require('./helpers');
+const { SECRET, tokenFor, lookupUser } = require('./helpers');
 
 const silent = { info() {}, warn() {}, error() {} };
 const config = loadConfig({ JWT_SECRET: SECRET });
 const KEY = tokenFor(config, 'manager');
-const app = createApp(config, { logger: silent, clientDir: null });
+const app = createApp(config, { logger: silent, clientDir: null, lookupUser });
 const read = (f) => fs.readFileSync(path.join(__dirname, '../../case/seed', f), 'utf8');
 
 let res;

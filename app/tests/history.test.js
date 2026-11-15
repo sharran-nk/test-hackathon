@@ -266,17 +266,37 @@ describe('authorization', () => {
 });
 
 describe('database outage', () => {
-  test('history routes return 503 and check still returns findings with saved:false', async () => {
+  // The server fails closed: with MongoDB down it cannot verify the account, so every protected
+  // request is 503. To still test what the history routes and the checker do when only the data
+  // part is unavailable, the first test hands the app an account lookup that says "manager".
+  const verifiedApp = createApp(loadConfig({ JWT_SECRET: SECRET }), {
+    logger, clientDir: null, lookupUser: async () => ({ role: 'manager', active: true }),
+  });
+
+  test('account verified but MongoDB down: history routes 503, check still returns findings with saved:false', async () => {
     const saved = await check(small);
+    const id = saved.body.resultId;
     await db.disconnect();
-    for (const res of [await hist(), await hist(`/${saved.body.resultId}`), await del(saved.body.resultId)]) {
+    const call = (m, p) => request(verifiedApp)[m](p).set('Authorization', 'Bearer ' + TOKEN);
+    for (const res of [await call('get', '/api/history'), await call('get', '/api/history/' + id), await call('delete', '/api/history/' + id)]) {
       expect(res.status).toBe(503);
       expect(res.body.error.code).toBe('HISTORY_UNAVAILABLE');
     }
-    const res = await check(seed);
+    const res = await call('post', '/api/check').send(seed);
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ saved: false, resultId: null });
     expect(res.body.findings).toHaveLength(6);
+  });
+
+  test('FAIL CLOSED: with MongoDB down and the real lookup, every protected route is 503 AUTH_UNAVAILABLE', async () => {
+    const saved = await check(small);
+    await db.disconnect();
+    const calls = [await hist(), await hist('/' + saved.body.resultId), await del(saved.body.resultId), await check(seed)];
+    for (const res of calls) {
+      expect(res.status).toBe(503);
+      expect(res.body.error.code).toBe('AUTH_UNAVAILABLE');
+      expect(res.body.findings).toBeUndefined();
+    }
   });
 
   test('connection lost in the middle of a request: 503 and the error message is not logged', async () => {

@@ -8,7 +8,7 @@ const { send } = require('./util');
 // POST /api/auth/login   { username, password }  ->  { token, user }
 // GET  /api/auth/me      who am I (from the verified token)
 // POST /api/auth/logout  the token stops working
-function createAuthRouter(config, logger) {
+function createAuthRouter(config, logger, lookupUser) {
   const router = express.Router();
   router.use(express.json({ limit: '4kb' }));
 
@@ -38,7 +38,7 @@ function createAuthRouter(config, logger) {
     }
   });
 
-  const auth = requireAuth(config, logger);
+  const auth = requireAuth(config, logger, lookupUser);
 
   router.get('/me', auth, (req, res) => {
     res.json({ username: req.user.username, role: req.user.role, employeeId: req.user.employeeId || null });

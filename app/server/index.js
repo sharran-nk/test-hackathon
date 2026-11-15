@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { createLogger } = require('./logger');
-const { requireAuth, requireRole } = require('./auth');
+const { requireAuth, requireRole, lookupUserInDb } = require('./auth');
 const { createAuthRouter } = require('./routes/auth');
 const { createMeRouter } = require('./routes/me');
 const { createCheckRouter } = require('./routes/check');
@@ -17,7 +17,7 @@ const fail = (res, status, code, message, extra = {}) =>
 // Builds the Express app. Kept separate from listen() so Supertest can use it.
 // clientDir is the built React app (client/dist). If it does not exist (for example in
 // the API tests), the API still works and "/" is simply a 404.
-function createApp(config, { logger = createLogger(), clientDir = path.join(__dirname, '../client/dist'), store = defaultStore } = {}) {
+function createApp(config, { logger = createLogger(), clientDir = path.join(__dirname, '../client/dist'), store = defaultStore, lookupUser = lookupUserInDb } = {}) {
   const app = express();
   app.disable('x-powered-by');
 
@@ -52,8 +52,8 @@ function createApp(config, { logger = createLogger(), clientDir = path.join(__di
 
   // Order of checks: sign-in endpoints (open, small body limit), then a valid token, then the
   // role, then size, JSON and fields, then the rules. An anonymous caller learns nothing.
-  app.use('/api/auth', createAuthRouter(config, logger));
-  app.use('/api', requireAuth(config, logger));
+  app.use('/api/auth', createAuthRouter(config, logger, lookupUser));
+  app.use('/api', requireAuth(config, logger, lookupUser));
   app.use('/api/me', requireRole('employee'), createMeRouter({ store, logger }));
   app.use('/api/check', requireRole('manager'));
   app.use('/api/history', requireRole('manager'));
