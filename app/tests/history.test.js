@@ -12,15 +12,17 @@ const Finding = require('../server/models/Finding');
 
 jest.setTimeout(120000);
 
-const KEY = 'test-key-1234567890';
+const { SECRET } = require('./helpers');
+const { ensureManager } = require('../server/seed');
 const logs = [];
 const logger = {
   info: () => {},
   warn: () => {},
   error: (m, f) => logs.push(JSON.stringify({ m, ...f })),
 };
-const app = createApp(loadConfig({ ACCESS_KEY: KEY }), { logger, clientDir: null });
-const auth = (r) => r.set('Authorization', `Bearer ${KEY}`);
+const app = createApp(loadConfig({ JWT_SECRET: SECRET }), { logger, clientDir: null });
+let TOKEN; // a real manager login, obtained in beforeAll
+const auth = (r) => r.set('Authorization', `Bearer ${TOKEN}`);
 const check = (body) => auth(request(app).post('/api/check')).send(body);
 const hist = (p = '') => auth(request(app).get(`/api/history${p}`));
 const del = (id) => auth(request(app).delete(`/api/history/${id}`));
@@ -39,6 +41,9 @@ let mongod;
 beforeAll(async () => {
   mongod = await MongoMemoryServer.create();
   await db.connect(mongod.getUri('history'), logger);
+  await ensureManager('manager123');
+  const login = await request(app).post('/api/auth/login').send({ username: 'manager', password: 'manager123' });
+  TOKEN = login.body.token;
 });
 afterAll(async () => {
   await db.disconnect();
@@ -251,12 +256,12 @@ describe('DELETE /api/history/:id', () => {
   });
 });
 
-describe('authorization (shared key, until Milestone 4)', () => {
-  test.each([['get', '/api/history'], ['get', '/api/history/abc'], ['delete', '/api/history/abc']])('%s %s without a key is 401', async (m, p) => {
+describe('authorization', () => {
+  test.each([['get', '/api/history'], ['get', '/api/history/abc'], ['delete', '/api/history/abc']])('%s %s without a token is 401', async (m, p) => {
     expect((await request(app)[m](p)).status).toBe(401);
   });
-  test('wrong key is 401', async () => {
-    expect((await request(app).get('/api/history').set('Authorization', 'Bearer nope')).status).toBe(401);
+  test('wrong token is 401', async () => {
+    expect((await request(app).get('/api/history').set('Authorization', 'Bearer not.a.token')).status).toBe(401);
   });
 });
 

@@ -1,4 +1,4 @@
-// Reads all settings from environment variables. Refuses to start without ACCESS_KEY.
+// Reads all settings from environment variables. Refuses to start without a JWT_SECRET.
 function intFrom(env, name, fallback) {
   const raw = env[name];
   if (raw === undefined || raw === '') return fallback;
@@ -10,11 +10,17 @@ function intFrom(env, name, fallback) {
 }
 
 function loadConfig(env = process.env) {
-  if (!env.ACCESS_KEY || env.ACCESS_KEY.trim() === '') {
-    throw new Error('ACCESS_KEY is required. Set it in the environment (see .env.example).');
+  const secret = env.JWT_SECRET || '';
+  if (secret.trim().length < 32) {
+    throw new Error('JWT_SECRET is required and must be at least 32 characters. Set it in the environment (see .env.example).');
+  }
+  const expires = env.JWT_EXPIRES_IN || '8h';
+  if (!/^[1-9]\d{0,3}[mhd]$/.test(expires)) {
+    throw new Error('JWT_EXPIRES_IN must look like 30m, 8h or 1d');
   }
   return {
-    accessKey: env.ACCESS_KEY,
+    jwtSecret: secret,
+    jwtExpiresIn: expires,
     port: intFrom(env, 'PORT', 3000),
     maxBodyKb: intFrom(env, 'MAX_BODY_KB', 1024),
     maxFindings: intFrom(env, 'MAX_FINDINGS', 1000),

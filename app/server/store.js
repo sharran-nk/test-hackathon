@@ -16,15 +16,15 @@ const db = require('./db');
 const ID_RE = /^[0-9a-f]{24}$/i;
 const isValidId = (id) => typeof id === 'string' && ID_RE.test(id);
 
-async function saveCheck({ parsed, summary, findings }) {
+async function saveCheck({ parsed, summary, findings, ownerId }) {
   const resultId = new mongoose.Types.ObjectId();
-  const roster = new Roster({ employees: parsed.employees, shifts: parsed.shifts, leave: parsed.leave });
+  const roster = new Roster({ ownerId, employees: parsed.employees, shifts: parsed.shifts, leave: parsed.leave });
   try {
     await roster.save();
     if (findings.length) {
       await Finding.insertMany(findings.map((f) => ({ ...f, resultId })), { ordered: true });
     }
-    await ValidationResult.create({ _id: resultId, rosterId: roster._id, summary });
+    await ValidationResult.create({ _id: resultId, ownerId, rosterId: roster._id, summary });
     return String(resultId);
   } catch (err) {
     await Promise.allSettled([
@@ -80,4 +80,30 @@ async function deleteResult(id) {
   return true;
 }
 
-module.exports = { saveCheck, listResults, getResult, deleteResult, isValidId, isUp: db.isUp };
+// One employee's own view of the latest saved check (by any manager). Only that employee's rows
+// are selected, so nothing about anyone else leaves this function.
+async function getEmployeeSchedule(employeeId) {
+  const latest = await ValidationResult.findOne({}).sort({ createdAt: -1, _id: -1 }).lean();
+  const roster = latest && (await Roster.findById(latest.rosterId).select('employees shifts leave').lean());
+  if (!latest || !roster) {
+    return { hasRoster: false, employeeId, rosterDate: null, homeStore: null, shifts: [], leave: [], findings: [] };
+  }
+  const me = roster.employees.find((e) => e.employeeId === employeeId);
+  const findings = await Finding.find({ resultId: latest._id, employeeId }).sort({ seq: 1 }).lean();
+  return {
+    hasRoster: true,
+    employeeId,
+    rosterDate: latest.createdAt,
+    homeStore: me ? me.homeStore : null,
+    shifts: roster.shifts
+      .filter((s) => s.employeeId === employeeId)
+      .map(({ shiftId, storeId, date, start, end }) => ({ shiftId, storeId, date, start, end }))
+      .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)),
+    leave: roster.leave
+      .filter((l) => l.employeeId === employeeId)
+      .map(({ leaveId, startDate, endDate, status }) => ({ leaveId, startDate, endDate, status })),
+    findings: findings.map(({ rule, severity, shiftIds, message }) => ({ rule, severity, shiftIds, message })),
+  };
+}
+
+module.exports = { saveCheck, getEmployeeSchedule, listResults, getResult, deleteResult, isValidId, isUp: db.isUp };

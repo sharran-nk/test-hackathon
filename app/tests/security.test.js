@@ -56,7 +56,7 @@ describe('client source: no key in code or build config (NFR-S2)', () => {
 
   test('.env is git-ignored and .env.example holds only a placeholder', () => {
     expect(read(path.join(ROOT, '.gitignore'))).toMatch(/^\.env$/m);
-    expect(read(path.join(ROOT, '.env.example'))).toMatch(/^ACCESS_KEY=change-me/m);
+    expect(read(path.join(ROOT, '.env.example'))).toMatch(/^JWT_SECRET=change-me/m);
   });
 });
 
@@ -84,11 +84,13 @@ const built = fs.existsSync(path.join(DIST, 'index.html'));
 
   test('no ACCESS_KEY name, VITE_ variable or real key value in any built file', () => {
     // Real values that must never be baked in: the key from the environment and from .env.
-    const secrets = [process.env.ACCESS_KEY];
+    const secrets = [process.env.JWT_SECRET, process.env.MONGO_ROOT_PASSWORD];
     const envFile = path.join(ROOT, '.env');
     if (fs.existsSync(envFile)) {
-      const m = /^ACCESS_KEY=(.+)$/m.exec(read(envFile));
-      if (m) secrets.push(m[1].trim());
+      for (const name of ['JWT_SECRET', 'MONGO_ROOT_PASSWORD']) {
+        const m = new RegExp('^' + name + '=(.+)$', 'm').exec(read(envFile));
+        if (m) secrets.push(m[1].trim());
+      }
     }
     const real = secrets.filter((s) => s && s.length >= 8 && !s.startsWith('change-me'));
     for (const file of distFiles) {

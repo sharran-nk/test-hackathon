@@ -3,7 +3,7 @@ const express = require('express');
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
-const send = (res, status, code, message) => res.status(status).json({ error: { code, message } });
+const { send } = require('./util');
 
 // Positive whole number from a query string, or the fallback. "abc", "0", "-1", "1.5" are rejected.
 function intParam(raw, fallback, name) {

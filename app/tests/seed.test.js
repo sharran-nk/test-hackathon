@@ -7,9 +7,12 @@ const request = require('supertest');
 const { createApp } = require('../server/index');
 const { loadConfig } = require('../server/config');
 
-const KEY = 'seed-test-key-123456';
+const { SECRET, tokenFor } = require('./helpers');
+
 const silent = { info() {}, warn() {}, error() {} };
-const app = createApp(loadConfig({ ACCESS_KEY: KEY }), { logger: silent, clientDir: null });
+const config = loadConfig({ JWT_SECRET: SECRET });
+const KEY = tokenFor(config, 'manager');
+const app = createApp(config, { logger: silent, clientDir: null });
 const read = (f) => fs.readFileSync(path.join(__dirname, '../../case/seed', f), 'utf8');
 
 let res;

@@ -3,7 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { createLogger } = require('./logger');
-const { requireKey } = require('./auth');
+const { requireAuth, requireRole } = require('./auth');
+const { createAuthRouter } = require('./routes/auth');
+const { createMeRouter } = require('./routes/me');
 const { createCheckRouter } = require('./routes/check');
 const { createHistoryRouter } = require('./routes/history');
 const defaultStore = require('./store');
@@ -48,9 +50,13 @@ function createApp(config, { logger = createLogger(), clientDir = path.join(__di
     res.json({ status: 'ok' });
   });
 
-  // Order of checks: key, then size, then JSON and fields, then the rules.
-  // An anonymous caller learns nothing about validation.
-  app.use('/api', requireKey(config.accessKey));
+  // Order of checks: sign-in endpoints (open, small body limit), then a valid token, then the
+  // role, then size, JSON and fields, then the rules. An anonymous caller learns nothing.
+  app.use('/api/auth', createAuthRouter(config, logger));
+  app.use('/api', requireAuth(config, logger));
+  app.use('/api/me', requireRole('employee'), createMeRouter({ store, logger }));
+  app.use('/api/check', requireRole('manager'));
+  app.use('/api/history', requireRole('manager'));
   app.use('/api', express.json({ limit: `${config.maxBodyKb}kb` }));
   app.use('/api', createCheckRouter(config, { store, logger }));
   app.use('/api/history', createHistoryRouter({ store, logger }));

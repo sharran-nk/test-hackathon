@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, trim: true },
   role: { type: String, required: true, enum: ['manager', 'employee'] },
   employeeId: { type: String, default: undefined }, // employees only
+  active: { type: Boolean, default: true }, // false = cannot sign in, and existing tokens stop working
   passwordHash: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });

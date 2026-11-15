@@ -24,17 +24,19 @@ function employeeIdsFrom(csvText) {
   return [...new Set(rows.map((r) => r.fields[i]).filter((id) => ID_RE.test(id)))];
 }
 
-async function seedUsers({ managerPassword, employeeIds, credentialsFile, logger }) {
-  const out = { managerCreated: false, employeesCreated: 0, employeesSkipped: 0 };
+// Creates the manager only if there is none. An existing manager's password is never changed.
+async function ensureManager(managerPassword) {
+  if (await User.exists({ username: 'manager' })) return false;
+  await User.create({
+    username: 'manager',
+    role: 'manager',
+    passwordHash: await bcrypt.hash(managerPassword, ROUNDS),
+  });
+  return true;
+}
 
-  if (!(await User.exists({ username: 'manager' }))) {
-    await User.create({
-      username: 'manager',
-      role: 'manager',
-      passwordHash: await bcrypt.hash(managerPassword, ROUNDS),
-    });
-    out.managerCreated = true;
-  }
+async function seedUsers({ managerPassword, employeeIds, credentialsFile, logger }) {
+  const out = { managerCreated: await ensureManager(managerPassword), employeesCreated: 0, employeesSkipped: 0 };
 
   const lines = [];
   for (const id of employeeIds) {
@@ -64,10 +66,14 @@ async function seedUsers({ managerPassword, employeeIds, credentialsFile, logger
 async function main() {
   const logger = createLogger();
   const csvPath = process.argv[2] || path.join(__dirname, '../../case/seed/employees.csv');
+  if (!process.env.MANAGER_PASSWORD) {
+    console.error('MANAGER_PASSWORD is required (see .env.example)');
+    process.exit(1);
+  }
   const ids = employeeIdsFrom(fs.readFileSync(csvPath, 'utf8'));
   if (!(await db.connect(db.buildMongoUri(), logger))) process.exit(1);
   await seedUsers({
-    managerPassword: process.env.MANAGER_PASSWORD || 'manager123',
+    managerPassword: process.env.MANAGER_PASSWORD,
     employeeIds: ids,
     credentialsFile: process.env.CREDENTIALS_FILE || path.join(process.cwd(), 'credentials.txt'),
     logger,
@@ -82,4 +88,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { seedUsers, employeeIdsFrom, randomPassword };
+module.exports = { ensureManager, seedUsers, employeeIdsFrom, randomPassword };

@@ -2,9 +2,12 @@ const request = require('supertest');
 const { createApp } = require('../server/index');
 const { loadConfig } = require('../server/config');
 
-const KEY = 'test-key-1234567890';
+const { SECRET, tokenFor } = require('./helpers');
+
 const silent = { info() {}, warn() {}, error() {} };
-const config = loadConfig({ ACCESS_KEY: KEY });
+const config = loadConfig({ JWT_SECRET: SECRET });
+// KEY is a valid manager token. These tests run without MongoDB, so the signature is what counts.
+const KEY = tokenFor(config, 'manager');
 // clientDir: null so these API tests never depend on whether the React build exists.
 const app = createApp(config, { logger: silent, clientDir: null });
 
@@ -60,14 +63,14 @@ describe('POST /api/check', () => {
   });
 });
 
-describe('access key', () => {
+describe('token required', () => {
   test.each([
     ['missing', undefined],
     ['wrong', 'Bearer wrong-key-sent-by-caller'],
     ['wrong scheme', `Basic ${KEY}`],
     ['no scheme', KEY],
     ['empty bearer', 'Bearer '],
-  ])('%s key gives 401 and the response never contains a key', async (_, header) => {
+  ])('%s token gives 401 and the response never contains a token', async (_, header) => {
     const r = request(app).post('/api/check');
     if (header !== undefined) r.set('Authorization', header);
     const res = await r.send(good);
@@ -77,7 +80,7 @@ describe('access key', () => {
     expect(res.text).not.toContain('wrong-key-sent-by-caller');
   });
 
-  test('unknown /api route without a key is 401, with a key is 404', async () => {
+  test('unknown /api route without a token is 401, with a token is 404', async () => {
     expect((await request(app).get('/api/nothing')).status).toBe(401);
     expect((await request(app).get('/api/nothing').set('Authorization', `Bearer ${KEY}`)).status).toBe(404);
   });
@@ -88,12 +91,10 @@ describe('access key', () => {
   });
 });
 
-// The dashboard's manager sign-in is TEMPORARY: it sends an empty POST /api/check and reads
-// the status (401 = wrong key, 400 = right key). That only works while the server checks the
-// key BEFORE it looks at the body. These tests fail if that order ever changes, because then a
-// wrong key could get 200, 400 or 413 and the sign-in would let the wrong person in.
-describe('sign-in key check does not depend on the body', () => {
-  const WRONG = 'Bearer definitely-the-wrong-key';
+// The token is checked BEFORE the body is read, so an anonymous caller cannot learn anything
+// from 200, 400 or 413. These tests fail if that order ever changes.
+describe('token check does not depend on the body', () => {
+  const WRONG = 'Bearer definitely.the.wrong-token';
   const bodies = [
     ['empty object', '{}'],
     ['a fully valid roster', JSON.stringify(good)],
@@ -105,8 +106,8 @@ describe('sign-in key check does not depend on the body', () => {
     ['no body at all', ''],
   ];
 
-  test.each(bodies)('wrong key + %s is always 401', async (_, raw) => {
-    const small = createApp(loadConfig({ ACCESS_KEY: KEY, MAX_BODY_KB: '1' }), { logger: silent, clientDir: null });
+  test.each(bodies)('wrong token + %s is always 401', async (_, raw) => {
+    const small = createApp(loadConfig({ JWT_SECRET: SECRET, MAX_BODY_KB: '1' }), { logger: silent, clientDir: null });
     const res = await request(small).post('/api/check')
       .set('Authorization', WRONG).set('Content-Type', 'application/json').send(raw);
     expect(res.status).toBe(401);
@@ -114,14 +115,14 @@ describe('sign-in key check does not depend on the body', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
 
-  test('missing key + %s is also 401 for every body', async () => {
+  test('missing token is also 401 for every body', async () => {
     for (const [, raw] of bodies) {
       const res = await request(app).post('/api/check').set('Content-Type', 'application/json').send(raw);
       expect(res.status).toBe(401);
     }
   });
 
-  test('right key + empty object is 400 (this is how the page tells a right key from a wrong one)', async () => {
+  test('right token + empty object is 400', async () => {
     const res = await post({});
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('INVALID_REQUEST');
@@ -151,7 +152,7 @@ describe('input errors', () => {
   });
 
   test('a body over MAX_BODY_KB gives 413', async () => {
-    const small = createApp(loadConfig({ ACCESS_KEY: KEY, MAX_BODY_KB: '1' }), { logger: silent });
+    const small = createApp(loadConfig({ JWT_SECRET: SECRET, MAX_BODY_KB: '1' }), { logger: silent });
     const res = await post({ ...good, shifts: SHIFTS + 'x'.repeat(2000) }, KEY, small);
     expect(res.status).toBe(413);
     expect(res.body.error.code).toBe('TOO_LARGE');
@@ -228,14 +229,21 @@ describe('serving the React build', () => {
 });
 
 describe('config', () => {
-  test('refuses to start without ACCESS_KEY', () => {
-    expect(() => loadConfig({})).toThrow(/ACCESS_KEY/);
-    expect(() => loadConfig({ ACCESS_KEY: '  ' })).toThrow(/ACCESS_KEY/);
+  test('refuses to start without a strong JWT_SECRET', () => {
+    expect(() => loadConfig({})).toThrow(/JWT_SECRET/);
+    expect(() => loadConfig({ JWT_SECRET: '  ' })).toThrow(/JWT_SECRET/);
+    expect(() => loadConfig({ JWT_SECRET: 'too-short' })).toThrow(/JWT_SECRET/);
+  });
+
+  test('ACCESS_KEY is gone: it is neither required nor used', () => {
+    expect(() => loadConfig({ ACCESS_KEY: 'a-long-access-key-that-used-to-work-0123456789' })).toThrow(/JWT_SECRET/);
+    expect(loadConfig({ JWT_SECRET: SECRET, ACCESS_KEY: 'x' })).not.toHaveProperty('accessKey');
   });
 
   test('applies defaults and rejects bad numbers', () => {
-    const c = loadConfig({ ACCESS_KEY: 'k' });
-    expect(c).toMatchObject({ port: 3000, maxBodyKb: 1024, maxFindings: 1000, minRestHours: 11 });
-    expect(() => loadConfig({ ACCESS_KEY: 'k', MAX_FINDINGS: 'abc' })).toThrow(/MAX_FINDINGS/);
+    const c = loadConfig({ JWT_SECRET: SECRET });
+    expect(c).toMatchObject({ port: 3000, maxBodyKb: 1024, maxFindings: 1000, minRestHours: 11, jwtExpiresIn: '8h' });
+    expect(() => loadConfig({ JWT_SECRET: SECRET, MAX_FINDINGS: 'abc' })).toThrow(/MAX_FINDINGS/);
+    expect(() => loadConfig({ JWT_SECRET: SECRET, JWT_EXPIRES_IN: 'forever' })).toThrow(/JWT_EXPIRES_IN/);
   });
 });

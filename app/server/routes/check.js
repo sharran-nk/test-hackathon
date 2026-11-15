@@ -33,7 +33,8 @@ function createCheckRouter(config, { store, logger }) {
         try {
           // The rows kept for saving come from the same parser the rules use (names are dropped on save).
           const parsed = parseRoster({ employees: body.employees, shifts: body.shifts, leave: body.leave || '' });
-          resultId = await store.saveCheck({ parsed, summary, findings });
+          const ownerId = store.isValidId(req.user.id) ? req.user.id : undefined;
+          resultId = await store.saveCheck({ parsed, summary, findings, ownerId });
         } catch (err) {
           logger.error('save_failed', { requestId: req.id, errorName: err.name }); // name only
         }
