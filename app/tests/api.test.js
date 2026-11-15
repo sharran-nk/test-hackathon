@@ -88,6 +88,46 @@ describe('access key', () => {
   });
 });
 
+// The dashboard's manager sign-in is TEMPORARY: it sends an empty POST /api/check and reads
+// the status (401 = wrong key, 400 = right key). That only works while the server checks the
+// key BEFORE it looks at the body. These tests fail if that order ever changes, because then a
+// wrong key could get 200, 400 or 413 and the sign-in would let the wrong person in.
+describe('sign-in key check does not depend on the body', () => {
+  const WRONG = 'Bearer definitely-the-wrong-key';
+  const bodies = [
+    ['empty object', '{}'],
+    ['a fully valid roster', JSON.stringify(good)],
+    ['malformed JSON', '{not json'],
+    ['a JSON array', '[1,2,3]'],
+    ['a JSON string', '"hello"'],
+    ['valid roster with a bad row', JSON.stringify({ ...good, shifts: SHIFTS + 'A3,E001,S01,31/11/2026,09:00,10:00\n' })],
+    ['a body over the size limit', JSON.stringify({ ...good, shifts: SHIFTS + 'x'.repeat(5000) })],
+    ['no body at all', ''],
+  ];
+
+  test.each(bodies)('wrong key + %s is always 401', async (_, raw) => {
+    const small = createApp(loadConfig({ ACCESS_KEY: KEY, MAX_BODY_KB: '1' }), { logger: silent, clientDir: null });
+    const res = await request(small).post('/api/check')
+      .set('Authorization', WRONG).set('Content-Type', 'application/json').send(raw);
+    expect(res.status).toBe(401);
+    expect([200, 400, 413]).not.toContain(res.status);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  test('missing key + %s is also 401 for every body', async () => {
+    for (const [, raw] of bodies) {
+      const res = await request(app).post('/api/check').set('Content-Type', 'application/json').send(raw);
+      expect(res.status).toBe(401);
+    }
+  });
+
+  test('right key + empty object is 400 (this is how the page tells a right key from a wrong one)', async () => {
+    const res = await post({});
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_REQUEST');
+  });
+});
+
 describe('input errors', () => {
   test.each([
     ['bad JSON', '{not json', /not valid JSON/],

@@ -65,3 +65,38 @@ export const IconChevron = (p) => (
 export const IconUpload = (p) => (
   <Svg {...p}><path d="M12 16V4" /><path d="m7 9 5-5 5 5" /><path d="M4 20h16" /></Svg>
 );
+export const IconUser = (p) => (
+  <Svg {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></Svg>
+);
+export const IconBriefcase = (p) => (
+  <Svg {...p}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 13h18" /></Svg>
+);
+export const IconDashboard = (p) => (
+  <Svg {...p}><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></Svg>
+);
+export const IconTable = (p) => (
+  <Svg {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18" /><path d="M9 4v16" /></Svg>
+);
+export const IconHistory = (p) => (
+  <Svg {...p}><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /><path d="M12 7v5l3 2" /></Svg>
+);
+export const IconLogout = (p) => (
+  <Svg {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></Svg>
+);
+export const IconBack = (p) => (
+  <Svg {...p}><path d="m15 18-6-6 6-6" /></Svg>
+);
+
+// Company logo: a green rounded square with a white shopping basket. Pure inline SVG.
+export function Logo({ size = 40 }) {
+  return (
+    <svg className="logo" width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+      <rect width="40" height="40" rx="8" fill="currentColor" />
+      <g transform="translate(8 8) scale(1)" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m15 11-1 9" /><path d="m19 11-4-7" /><path d="M2 11h20" />
+        <path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4" />
+        <path d="M4.5 15.5h15" /><path d="m5 11 4-7" /><path d="m9 11 1 9" />
+      </g>
+    </svg>
+  );
+}
