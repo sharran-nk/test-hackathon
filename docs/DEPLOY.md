@@ -58,7 +58,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-`docker compose ps` should show the app as `Up ... (healthy)` within about 15 seconds of the build finishing. The first build downloads images and installs packages, so it takes a few minutes.
+`docker compose ps` should show the app as `Up ... (healthy)` within about 15 seconds of the build finishing. The container name is `roster-checker-app-1` when the clone folder is called `roster-checker`. The first build downloads images and installs packages, so it takes a few minutes.
 
 ## 5. Check `/health`
 
@@ -105,15 +105,19 @@ curl.exe -s -i -X POST -H "Content-Type: application/json" -d "{}" http://<ip>:3
 
 Expected: `HTTP/1.1 401 Unauthorized`.
 
-Restart check (acceptance test for the milestone):
+Restart check (acceptance test for the milestone). `docker kill` does not work as a test: Docker treats a manual kill as a deliberate stop and does not restart the container (seen on the instance: exit code 137, it stayed down). Kill the app process from the host instead, which is what a crash or an out-of-memory kill looks like:
 
 ```bash
-docker kill $(docker compose ps -q app)
-sleep 15
-docker compose ps        # should be Up again: restart policy is unless-stopped
+PID=$(sudo docker inspect -f '{{.State.Pid}}' roster-checker-app-1)
+sudo kill -9 $PID
+sleep 20
+sudo docker compose ps                                                      # Up again, healthy
+sudo docker inspect -f 'restarts={{.RestartCount}}' roster-checker-app-1    # restarts=1
 ```
 
-Port check from your own computer: 3000 answers, and 22 and 27017 do not answer from other addresses.
+If you did use `docker kill`, start the container again with `docker compose up -d`.
+
+Port check from your own computer (PowerShell): `Test-NetConnection <ip> -Port 3000` succeeds, and port 27017 does not. Port 22 should answer only from your own IP: if it answers from anywhere, the SSH rule in the security group is open to 0.0.0.0/0 and should be narrowed.
 
 ## 8. If the build runs out of memory
 
