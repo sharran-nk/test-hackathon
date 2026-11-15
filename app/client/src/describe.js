@@ -1,9 +1,9 @@
-// Pure display logic: turns the API's findings into short plain-English lines, groups them per
-// employee and counts them for the filter chips. No React, no network, no storage.
+// Pure display logic: turns the API's findings into table rows with one short plain line, and
+// counts them for the tabs and pills. No React, no network, no storage.
 //
-// The API's findings carry no store or times, so the sentences are built from the CSV text the
-// page already holds (employees, shifts, leave). Names are never read: only IDs, stores,
-// dates and times. If a lookup fails, the line falls back to the server's own sentence.
+// The API's findings carry no store or times, so the lines are built from the CSV text the
+// page already holds (employees, shifts). Names are never read: only IDs, stores, dates and
+// times. If a lookup fails, the row falls back to the server's own sentence.
 
 export const GROUP_OF = {
   OVERLAP: 'overlap',
@@ -23,16 +23,7 @@ export const RULE_LABEL = {
   UNKNOWN_REF: 'Unknown ID',
 };
 
-// Shown when the finding has no `hint` of its own (the server does not send hints yet).
-const DEFAULT_HINT = {
-  OVERLAP: 'Move one of the shifts, or end the first one before the second starts.',
-  SHORT_REST: 'Start the later shift later, or end the earlier one sooner.',
-  ON_LEAVE: 'Give the shift to someone else, or move it to another day.',
-  DATA_BAD_ROW: 'Correct the row in the file, then check again.',
-  DUPLICATE_ROW: 'Delete the repeated row from the file.',
-  UNKNOWN_REF: 'Add the missing ID to the employees file, or correct the row.',
-};
-
+const GROUP_RANK = { overlap: 0, rest: 1, leave: 2, data: 3 };
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -58,7 +49,7 @@ export function countRows(text) {
   return Math.max(0, n - 1);
 }
 
-export function buildLookup({ employees, shifts, leave }) {
+export function buildLookup({ employees, shifts }) {
   const homeStore = new Map();
   for (const r of csvObjects(employees)) if (r.employee_id) homeStore.set(r.employee_id, r.home_store);
   const shift = new Map();
@@ -78,8 +69,8 @@ function dateParts(iso) {
   const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
   return { weekday: WEEKDAYS[d.getUTCDay()], day: d.getUTCDate(), month: MONTHS[d.getUTCMonth()], ms: d.getTime() };
 }
-const dayLong = (iso) => { const p = dateParts(iso); return p ? `${p.weekday} ${p.day} ${p.month}` : iso; };
-const dayShort = (iso) => { const p = dateParts(iso); return p ? p.weekday : iso; };
+// "2026-11-18" -> "Wed 18 Nov". A value that is not a real date (an unreadable row) is shown as it was typed.
+const dateLabel = (iso) => { const p = dateParts(iso); return p ? `${p.weekday} ${p.day} ${p.month}` : (iso || '–'); };
 const span = (s) => `${s.start}–${s.end}`;
 const minutesOf = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + m; };
 
@@ -99,57 +90,53 @@ function reasonOf(message) {
   return String(message || '')
     .replace(/^[\w.]+(?: line \d+)?: /, '')
     .replace(/ Row skipped\.$/, '')
-    .replace(/\.$/, '');
+    .replace(/\.$/, '')
+    .replace(/ in YYYY-MM-DD format$/, '');
 }
 const capitalise = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
-// ---------- one finding -> one plain line ----------
+// ---------- one finding -> date + one short line ----------
 
-export function describeFinding(f, lookup) {
-  const hint = f.hint || DEFAULT_HINT[f.rule] || '';
-  const group = GROUP_OF[f.rule] || 'data';
+export function describeRow(f, lookup) {
   const [id1, id2] = f.shiftIds || [];
   const a = lookup && lookup.shift.get(id1);
   const b = lookup && lookup.shift.get(id2);
-  let text = null;
+  let date = null;
+  let description = null;
 
   if (f.rule === 'OVERLAP' && a && b) {
-    text = a.store === b.store
-      ? `Double-booked on ${dayLong(b.date)}: ${span(a)} and ${span(b)} at ${a.store}`
-      : `Double-booked on ${dayLong(b.date)}: ${span(a)} at ${a.store} and ${span(b)} at ${b.store}`;
+    date = dateLabel(b.date);
+    description = a.store === b.store
+      ? `${span(a)} overlaps ${span(b)} at ${a.store}`
+      : `${span(a)} at ${a.store} overlaps ${span(b)} at ${b.store}`;
   } else if (f.rule === 'SHORT_REST' && a && b) {
     const gap = gapText(a, b);
     if (gap) {
       const needs = /minimum is (\d+)h/.exec(f.message || '');
-      text = `Only ${gap} rest between ${dayShort(a.date)} ${a.end} and ${dayShort(b.date)} ${b.start}`
-        + (needs ? ` (needs ${needs[1]}h)` : '');
+      date = dateLabel(a.date);
+      description = `Only ${gap} rest: ends ${a.end}, next starts ${b.start}` + (needs ? ` (needs ${needs[1]}h)` : '');
     }
   } else if (f.rule === 'ON_LEAVE' && a) {
     const leaveId = /approved leave ([\w-]+)/.exec(f.message || '');
-    text = `Rostered ${dayLong(a.date)} ${span(a)} at ${a.store} during approved leave${leaveId ? ` (${leaveId[1]})` : ''}`;
+    date = dateLabel(a.date);
+    description = `${span(a)} at ${a.store} during approved leave${leaveId ? ` ${leaveId[1]}` : ''}`;
   } else if (f.rule === 'DUPLICATE_ROW') {
     const n = /appears (\d+) times/.exec(f.message || '');
-    text = `Shift ${id1 || 'row'} appears ${n ? `${n[1]} times` : 'more than once'} with identical details. It was counted once`;
+    date = a ? dateLabel(a.date) : null;
+    description = `Appears ${n ? `${n[1]} times` : 'more than once'} with identical details. Counted once`;
   } else if (f.rule === 'DATA_BAD_ROW' || f.rule === 'UNKNOWN_REF') {
-    const reason = reasonOf(f.message);
-    text = id1
-      ? `Shift ${id1}: ${reason}. This row was not checked`
-      : `${capitalise(reason)}. This row was not checked`;
+    date = a ? dateLabel(a.date) : null;
+    description = `${capitalise(reasonOf(f.message))}. Row not checked`;
   }
 
   return {
-    text: text || f.message,
-    hint,
-    group,
-    severity: f.severity,
-    fellBack: text === null,
+    date: date || '–',
+    description: description || f.message,
+    fellBack: description === null,
   };
 }
 
-// ---------- grouping, sorting, counting ----------
-
-const SEV_RANK = { error: 0, warning: 1 };
-const GROUP_RANK = { overlap: 0, rest: 1, leave: 2, data: 3 };
+// ---------- rows, counts, status ----------
 
 export function countByGroup(findings) {
   const c = { all: findings.length, overlap: 0, rest: 0, leave: 0, data: 0 };
@@ -157,35 +144,42 @@ export function countByGroup(findings) {
   return c;
 }
 
-// One card per employee. Cards: errors before warnings, then by ID; findings not tied to an
-// employee come last. Inside a card: roster problems before data issues, errors before warnings.
-export function groupByEmployee(findings, lookup, chip = 'all') {
-  const wanted = chip === 'all' ? findings : findings.filter((f) => (GROUP_OF[f.rule] || 'data') === chip);
-  const cards = new Map();
-  for (const f of wanted) {
-    const key = f.employeeId || '';
-    if (!cards.has(key)) {
-      cards.set(key, { employeeId: f.employeeId || null, store: (lookup && lookup.homeStore.get(key)) || null, items: [] });
-    }
-    cards.get(key).items.push({ finding: f, ...describeFinding(f, lookup) });
-  }
-  const list = [...cards.values()];
-  for (const card of list) {
-    card.items.sort((x, y) =>
+// One row per finding for the table, optionally filtered by tab (all, overlap, rest, leave, data).
+// Roster problems come before data rows; inside a group rows are ordered by employee, then as found.
+export function tableRows(findings, lookup, tab = 'all') {
+  return findings
+    .filter((f) => tab === 'all' || (GROUP_OF[f.rule] || 'data') === tab)
+    .map((f) => ({
+      seq: f.seq,
+      rule: f.rule,
+      ruleLabel: RULE_LABEL[f.rule] || f.rule,
+      group: GROUP_OF[f.rule] || 'data',
+      severity: f.severity,
+      employeeId: f.employeeId || '–',
+      shiftIds: f.shiftIds && f.shiftIds.length ? f.shiftIds.join(', ') : '–',
+      ...describeRow(f, lookup),
+      finding: f,
+    }))
+    .sort((x, y) =>
       GROUP_RANK[x.group] - GROUP_RANK[y.group]
-      || SEV_RANK[x.severity] - SEV_RANK[y.severity]
-      || x.finding.seq - y.finding.seq);
-    card.worst = card.items.some((i) => i.severity === 'error') ? 'error' : 'warning';
-  }
-  list.sort((x, y) => {
-    if ((x.employeeId === null) !== (y.employeeId === null)) return x.employeeId === null ? 1 : -1;
-    return SEV_RANK[x.worst] - SEV_RANK[y.worst]
-      || (x.employeeId || '').localeCompare(y.employeeId || '', 'en');
-  });
-  return list;
+      || (x.employeeId < y.employeeId ? -1 : x.employeeId > y.employeeId ? 1 : 0)
+      || x.seq - y.seq);
 }
 
-// Text for the slim amber strip above the data details.
+// The slim status bar text: "Not clear to publish: 4 problems".
+export function statusLine(summary) {
+  if (summary.clear) return { clear: true, text: 'Clear to publish' };
+  const c = summary.counts;
+  const problems = (c.OVERLAP || 0) + (c.SHORT_REST || 0) + (c.ON_LEAVE || 0);
+  const data = (c.DATA_BAD_ROW || 0) + (c.DUPLICATE_ROW || 0) + (c.UNKNOWN_REF || 0);
+  const say = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const parts = [];
+  if (problems) parts.push(say(problems, 'problem', 'problems'));
+  if (data) parts.push(say(data, 'data issue', 'data issues'));
+  return { clear: false, text: `Not clear to publish: ${parts.join(' and ')}` };
+}
+
+// Text for the slim amber line above the data details.
 export function dataStripText(findings) {
   const bad = findings.filter((f) => f.rule === 'DATA_BAD_ROW').length;
   const unknown = findings.filter((f) => f.rule === 'UNKNOWN_REF').length;

@@ -2,14 +2,28 @@ import React, { useState } from 'react';
 import { Landing, EmployeeNotice, SignIn } from './Screens.jsx';
 import { Portal, HistoryScreen } from './Portal.jsx';
 import { Dashboard } from './Dashboard.jsx';
+import { UploadScreen } from './Upload.jsx';
+import { ResultsScreen } from './Results.jsx';
 import { NOTICE } from './brand.js';
+import sampleEmployees from './sample/employees.csv?raw';
+import sampleShifts from './sample/shifts.csv?raw';
+import sampleLeave from './sample/leave.csv?raw';
+
+// One page, no router: `screen` and `section` decide what is shown. Everything lives in React
+// state (memory only). The access key is never written to browser storage, cookies or the URL,
+// so a reload signs the manager out.
 
 const EMPTY_FILES = { employees: null, shifts: null, leave: null };
-const SECTION_TITLE = { dashboard: 'Dashboard', upload: 'Upload Roster', results: 'Validation Results' };
+const MAX_FILE_BYTES = 1024 * 1024; // matches the server's default 1 MB limit
 
-// One page, no router: `screen` decides what is shown. Everything lives in React state
-// (memory only). The access key is never written to browser storage, cookies or the URL,
-// so a reload signs the manager out.
+function readText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.readAsText(file);
+  });
+}
 
 // The only network call from the page. The key goes in the Authorization header, never in a URL.
 async function callApi(accessKey, payload) {
@@ -29,17 +43,34 @@ async function callApi(accessKey, payload) {
 
 export default function App() {
   const [screen, setScreen] = useState('landing'); // landing | employee | signin | portal
-  const [accessKey, setAccessKey] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [signInNotice, setSignInNotice] = useState('');
   const [section, setSection] = useState('dashboard'); // dashboard | upload | results | history
-  const [files, setFiles] = useState(EMPTY_FILES); // { name, text } per slot, in memory only
+  const [accessKey, setAccessKey] = useState('');
+  const [signInNotice, setSignInNotice] = useState('');
+  const [files, setFiles] = useState(EMPTY_FILES); // { name, text } per slot
   const [result, setResult] = useState(null); // the last check result
   const [checkedFiles, setCheckedFiles] = useState(null); // the files that result came from
+  const [uploadNotice, setUploadNotice] = useState(null); // { where, text, retry? }
+  const [busy, setBusy] = useState(false);
 
   function go(next) {
     setSignInNotice('');
     setScreen(next);
+  }
+
+  // Clears everything held in memory: the key, the loaded files and the last result.
+  function clearAll() {
+    setAccessKey('');
+    setFiles(EMPTY_FILES);
+    setResult(null);
+    setCheckedFiles(null);
+    setUploadNotice(null);
+    setSection('dashboard');
+  }
+
+  function logout() {
+    clearAll();
+    setSignInNotice('');
+    setScreen('landing');
   }
 
   // TEMPORARY. The API has no sign-in endpoint yet, so the key is checked by sending an empty
@@ -71,15 +102,74 @@ export default function App() {
     }
   }
 
-  function logout() {
-    // Everything held in memory is cleared: the key, the loaded files and the last result.
-    setAccessKey('');
-    setFiles(EMPTY_FILES);
+  async function loadFile(slot, file) {
+    setUploadNotice(null);
+    if (file.size > MAX_FILE_BYTES) {
+      setUploadNotice({ where: slot.id, text: `${file.name} is larger than 1 MB. Choose a smaller file.` });
+      return;
+    }
+    let text;
+    try {
+      text = await readText(file);
+    } catch {
+      setUploadNotice({ where: slot.id, text: `${file.name} could not be read. Choose a plain CSV text file.` });
+      return;
+    }
+    if (text.trim() === '' && slot.required) {
+      setUploadNotice({ where: slot.id, text: `${file.name} is empty. It needs a header row and data.` });
+      return;
+    }
+    setFiles((f) => ({ ...f, [slot.id]: { name: file.name, text } }));
+    setResult(null); // a changed file makes the old result out of date
+    setCheckedFiles(null);
+  }
+
+  function useSample() {
+    setUploadNotice(null);
+    setFiles({
+      employees: { name: 'sample employees.csv', text: sampleEmployees },
+      shifts: { name: 'sample shifts.csv', text: sampleShifts },
+      leave: { name: 'sample leave.csv', text: sampleLeave },
+    });
     setResult(null);
     setCheckedFiles(null);
-    setSection('dashboard');
-    setSignInNotice('');
-    setScreen('landing');
+  }
+
+  async function runValidation() {
+    setUploadNotice(null);
+    if (!files.employees || !files.shifts) {
+      setUploadNotice({ where: 'run', text: 'Choose the employees and shifts files first, or use the sample data.' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const { status, body } = await callApi(accessKey, {
+        employees: files.employees.text,
+        shifts: files.shifts.text,
+        leave: files.leave ? files.leave.text : '',
+      });
+      if (status === 401) {
+        // The password no longer works: sign out and say why.
+        clearAll();
+        setSignInNotice('Your password was not accepted. Sign in again.');
+        setScreen('signin');
+      } else if (status === 413) {
+        setUploadNotice({ where: 'run', text: 'The files are too large for the server (limit 1 MB in total). Use smaller files.' });
+      } else if (status === 400) {
+        setUploadNotice({ where: 'run', text: `The server could not use these files: ${body?.error?.message || 'the request was invalid.'}` });
+      } else if (status !== 200 || !body || !body.summary) {
+        const ref = body?.error?.requestId ? ` Reference: ${body.error.requestId}.` : '';
+        setUploadNotice({ where: 'run', text: `The server had a problem (status ${status}).${ref}`, retry: true });
+      } else {
+        setResult(body);
+        setCheckedFiles(files);
+        setSection('results');
+      }
+    } catch {
+      setUploadNotice({ where: 'run', text: 'Could not reach the server. Check your connection.', retry: true });
+    } finally {
+      setBusy(false);
+    }
   }
 
   let content;
@@ -99,16 +189,19 @@ export default function App() {
   } else if (screen === 'portal') {
     content = (
       <Portal section={section} onSection={setSection} onLogout={logout}>
-        {section === 'history' ? (
-          <HistoryScreen />
-        ) : section === 'dashboard' ? (
-          <Dashboard files={files} result={result} onGo={setSection} />
-        ) : (
-          <section className="page">
-            <h1>{SECTION_TITLE[section]}</h1>
-            <p className="muted">This screen is added in the next step.</p>
-          </section>
+        {section === 'dashboard' && <Dashboard files={files} result={result} onGo={setSection} />}
+        {section === 'upload' && (
+          <UploadScreen
+            files={files}
+            onFile={loadFile}
+            onSample={useSample}
+            onRun={runValidation}
+            busy={busy}
+            notice={uploadNotice}
+          />
         )}
+        {section === 'results' && <ResultsScreen result={result} files={checkedFiles} onGo={setSection} />}
+        {section === 'history' && <HistoryScreen />}
       </Portal>
     );
   } else {

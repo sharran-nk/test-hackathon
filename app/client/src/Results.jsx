@@ -1,220 +1,161 @@
 import React, { useMemo, useState } from 'react';
 import {
-  IconCheck, IconCheckCircle, IconChevron, IconError, IconWarning,
-  IconOverlap, IconMoon, IconCalendarOff, IconFileWarning,
+  IconCalendarOff, IconCheckCircle, IconChevron, IconError, IconFileWarning,
+  IconMoon, IconOverlap, IconTable, IconWarning,
 } from './Icons.jsx';
-import {
-  RULE_LABEL, GROUP_OF, buildLookup, countByGroup, groupByEmployee, dataStripText,
-} from './describe.js';
+import { GROUP_OF, RULE_LABEL, buildLookup, countByGroup, dataStripText, statusLine, tableRows } from './describe.js';
 
 // Everything here is rendered as plain text through React. Nothing from the server is ever
 // injected as HTML.
 
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-
-// ---------- the verdict slab: the answer in one glance ----------
-// Colour is not the only signal: the heading, the icon and the sentence say the same in words.
-export function Verdict({ summary }) {
-  const c = summary.counts;
-  const overlaps = c.OVERLAP || 0;
-  const rest = c.SHORT_REST || 0;
-  const leave = c.ON_LEAVE || 0;
-  const data = (c.DATA_BAD_ROW || 0) + (c.DUPLICATE_ROW || 0) + (c.UNKNOWN_REF || 0);
-  const problems = overlaps + rest + leave;
-
-  let sentence;
-  if (summary.clear) {
-    sentence = `No problems found in ${plural(summary.shiftsChecked, 'shift', 'shifts')}. This roster is ready to go out.`;
-  } else if (problems > 0) {
-    sentence = `${plural(problems, 'problem needs', 'problems need')} fixing before this roster goes out.`;
-  } else {
-    sentence = `No clashes found, but ${plural(data, 'data issue needs', 'data issues need')} a look before this roster goes out.`;
-  }
-
-  const numbers = [
-    [overlaps, 'Double-booked'],
-    [rest, 'Short rest'],
-    [leave, 'On leave'],
-    [data, data === 1 ? 'Data issue' : 'Data issues'],
-  ];
-
-  return (
-    <section className={`verdict ${summary.clear ? 'verdict-green' : 'verdict-red'}`} aria-live="polite">
-      <div className="verdict-title">
-        {summary.clear ? <IconCheckCircle size={44} /> : <IconError size={44} />}
-        <h2>{summary.clear ? 'Clear to publish' : 'Not clear to publish'}</h2>
-      </div>
-      <p className="verdict-sentence">{sentence}</p>
-      <ul className="numbers">
-        {numbers.map(([n, what]) => (
-          <li key={what} className={n === 0 ? 'zero' : ''}>
-            <span className="n">{n}</span>
-            <span className="what">{what}</span>
-          </li>
-        ))}
-      </ul>
-      {summary.truncated && (
-        <p className="verdict-note" role="alert">
-          The list was cut off at the maximum number of findings, so there are more problems than shown.
-        </p>
-      )}
-    </section>
-  );
-}
-
-// ---------- findings: filter chips, one card per employee, data strip ----------
-
-const CHIPS = [
+const TABS = [
   ['all', 'All'],
   ['overlap', 'Overlap'],
   ['rest', 'Rest'],
   ['leave', 'Leave'],
   ['data', 'Data'],
 ];
+const GROUP_ICON = { overlap: IconOverlap, rest: IconMoon, leave: IconCalendarOff, data: IconFileWarning };
+const GROUP_NAME = { overlap: 'Overlap', rest: 'Rest', leave: 'Leave', data: 'Data' };
 
-const RULE_ICON = {
-  OVERLAP: IconOverlap,
-  SHORT_REST: IconMoon,
-  ON_LEAVE: IconCalendarOff,
-  DATA_BAD_ROW: IconFileWarning,
-  DUPLICATE_ROW: IconFileWarning,
-  UNKNOWN_REF: IconFileWarning,
-};
-
-function SeverityTag({ severity }) {
+function SeverityLabel({ severity }) {
   const isError = severity === 'error';
   return (
-    <span className={`tag ${isError ? 'tag-error' : 'tag-warning'}`}>
-      {isError ? <IconError size={18} /> : <IconWarning size={18} />}
+    <span className={`sev ${isError ? 'sev-error' : 'sev-warning'}`}>
+      {isError ? <IconError size={14} /> : <IconWarning size={14} />}
       {isError ? 'Error' : 'Warning'}
     </span>
   );
 }
 
-function Problem({ item }) {
-  const [open, setOpen] = useState(false);
-  const f = item.finding;
-  const RuleIcon = RULE_ICON[f.rule] || IconFileWarning;
-  return (
-    <li className="problem">
-      <span className="p-icon"><RuleIcon size={26} /></span>
-      <div className="p-body">
-        <p className="p-text">{item.text}</p>
-        {item.hint && <p className="p-hint">Fix: {item.hint}</p>}
-        <button type="button" className="link" aria-expanded={open} onClick={() => setOpen(!open)}>
-          <IconChevron size={16} />
-          {open ? 'Hide details' : 'Details'}
-        </button>
-        {open && (
-          <dl className="details">
-            <dt>Rule</dt>
-            <dd>{RULE_LABEL[f.rule] || f.rule} ({f.rule})</dd>
-            <dt>Shifts</dt>
-            <dd>{f.shiftIds.length ? f.shiftIds.join(', ') : 'none named'}</dd>
-            {f.source && (
-              <>
-                <dt>Where</dt>
-                <dd>{f.source}{f.line ? `, line ${f.line}` : ''}</dd>
-              </>
-            )}
-            <dt>Checker said</dt>
-            <dd>{f.message}</dd>
-          </dl>
-        )}
-      </div>
-      <SeverityTag severity={item.severity} />
-    </li>
-  );
-}
-
-function EmployeeCard({ card }) {
-  return (
-    <article className={`emp emp-${card.worst}`}>
-      <header className="emp-head">
-        <h3>{card.employeeId || 'Not tied to an employee'}</h3>
-        {card.store && <span className="store">Store {card.store}</span>}
-      </header>
-      <ul className="problems">
-        {card.items.map((item) => <Problem key={item.finding.seq} item={item} />)}
-      </ul>
-    </article>
-  );
-}
-
-function DataStrip({ findings }) {
+// Slim amber line for rows that were skipped or merged. It expands to the file and line.
+function DataLine({ findings }) {
   const [open, setOpen] = useState(false);
   const rows = findings.filter((f) => GROUP_OF[f.rule] === 'data');
-  const text = dataStripText(findings);
-  if (rows.length === 0) {
-    return <p className="strip strip-ok"><IconCheck size={22} /> <span>{text}</span></p>;
-  }
+  if (rows.length === 0) return <p className="data-ok muted">{dataStripText(findings)}</p>;
   return (
-    <section className="strip strip-warn">
-      <button type="button" className="strip-button" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <IconFileWarning size={24} />
-        <span className="strip-text"><strong>Data quality:</strong> {text}</span>
-        <span className={`chev ${open ? 'chev-open' : ''}`}><IconChevron size={20} /></span>
+    <div className="data-line">
+      <button type="button" className="data-button" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <IconFileWarning size={18} />
+        <span className="data-text"><strong>Data quality:</strong> {dataStripText(findings)}</span>
+        <span className={`chev ${open ? 'chev-open' : ''}`}><IconChevron size={16} /></span>
       </button>
       {open && (
-        <ul className="strip-list">
-          <li className="small">Skipped rows were not checked, so a clash in one of them would not show above.</li>
+        <ul className="data-list">
+          <li>Skipped rows were not checked, so a clash in one of them would not show in the table.</li>
           {rows.map((f) => (
             <li key={f.seq}><strong>{RULE_LABEL[f.rule] || f.rule}:</strong> {f.message}</li>
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }
 
-// `files` is the CSV text the page already holds. It is used only to look up home stores,
-// shift times and store IDs for the plain-English lines (names are never read).
-export function ResultsView({ result, files }) {
-  const [chip, setChip] = useState('all');
+// `files` is the CSV text the page already holds. It is used only to look up shift dates, times
+// and stores for the one-line descriptions (names are never read).
+export function ResultsScreen({ result, files, onGo }) {
+  const [tab, setTab] = useState('all');
   const lookup = useMemo(() => buildLookup({
-    employees: files.employees ? files.employees.text : '',
-    shifts: files.shifts ? files.shifts.text : '',
-    leave: files.leave ? files.leave.text : '',
+    employees: files && files.employees ? files.employees.text : '',
+    shifts: files && files.shifts ? files.shifts.text : '',
   }), [files]);
-  const counts = useMemo(() => countByGroup(result.findings), [result]);
-  const cards = useMemo(() => groupByEmployee(result.findings, lookup, chip), [result, lookup, chip]);
+  const counts = useMemo(() => (result ? countByGroup(result.findings) : null), [result]);
+  const rows = useMemo(() => (result ? tableRows(result.findings, lookup, tab) : []), [result, lookup, tab]);
 
+  if (!result) {
+    return (
+      <section className="page">
+        <h1>Validation Results</h1>
+        <div className="placeholder">
+          <IconTable size={28} />
+          <div>
+            <h2>No results yet</h2>
+            <p className="muted">Run validation on an uploaded roster to see the findings here.</p>
+            <p><button type="button" className="btn btn-primary" onClick={() => onGo('upload')}>Go to Upload Roster</button></p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const status = statusLine(result.summary);
   return (
-    <>
+    <section className="page">
+      <h1>Validation Results</h1>
+
+      <div className={`status ${status.clear ? 'status-ok' : 'status-bad'}`} role="status">
+        <span className="status-text">
+          {status.clear ? <IconCheckCircle size={22} /> : <IconError size={22} />}
+          {status.text}
+        </span>
+        <ul className="pills" aria-label="Counts by type">
+          {['overlap', 'rest', 'leave', 'data'].map((g) => {
+            const Icon = GROUP_ICON[g];
+            return (
+              <li key={g} className={`pill ${counts[g] ? '' : 'pill-zero'}`}>
+                <Icon size={14} /> {GROUP_NAME[g]} <strong>{counts[g]}</strong>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {result.summary.truncated && (
+        <p className="data-line cut" role="alert">
+          <IconWarning size={18} /> The list was cut off at the maximum number of findings, so there are more problems than shown.
+        </p>
+      )}
+
       {result.findings.length > 0 && (
-        <section aria-label="Problems found">
-          <div className="chips" role="group" aria-label="Filter problems">
-            {CHIPS.map(([key, name]) => (
-              <button
-                key={key}
-                type="button"
-                className="chip"
-                aria-pressed={chip === key}
-                onClick={() => setChip(key)}
-              >
-                {name} <span className="chip-n">{counts[key]}</span>
+        <>
+          <div className="tabs" role="group" aria-label="Filter findings">
+            {TABS.map(([key, name]) => (
+              <button key={key} type="button" className="tab" aria-pressed={tab === key} onClick={() => setTab(key)}>
+                {name} <span className="tab-n">{counts[key]}</span>
               </button>
             ))}
           </div>
-          {cards.length === 0 ? (
-            <p className="muted nothing">Nothing in this group.</p>
+
+          {rows.length === 0 ? (
+            <p className="muted">Nothing in this group.</p>
           ) : (
-            <div className="cards">
-              {cards.map((card) => <EmployeeCard key={card.employeeId || 'none'} card={card} />)}
+            <div className="table-wrap">
+              <table className="grid">
+                <caption className="sr-only">Validation findings</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Rule</th>
+                    <th scope="col">Employee</th>
+                    <th scope="col">Shift IDs</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const Icon = GROUP_ICON[r.group];
+                    return (
+                      <tr key={r.seq}>
+                        <td className="c-rule">
+                          <span className="rule-name"><Icon size={16} /> {r.ruleLabel}</span>
+                          <SeverityLabel severity={r.severity} />
+                        </td>
+                        <td>{r.employeeId}</td>
+                        <td>{r.shiftIds}</td>
+                        <td className="nowrap">{r.date}</td>
+                        <td>{r.description}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
-        </section>
+        </>
       )}
-      <DataStrip findings={result.findings} />
-    </>
-  );
-}
 
-// Placeholder for Milestone 4. No database code exists yet.
-export function HistoryPlaceholder() {
-  return (
-    <p className="history muted small">
-      History: not available yet. Saved results will be listed here once the database is added.
-    </p>
+      <DataLine findings={result.findings} />
+    </section>
   );
 }
