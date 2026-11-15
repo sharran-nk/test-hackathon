@@ -1,0 +1,14 @@
+# Only the app for now. MongoDB is added in Milestone 4.
+services:
+  app:
+    build: .
+    ports:
+      - "${APP_PORT:-3000}:3000"   # host port; override only if 3000 is busy on your machine
+    env_file: .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
