@@ -1,0 +1,26 @@
+employee_id,name,home_store,role,contracted_hours_per_week
+E001,Priya Nair,S01,Store Manager,40
+E002,Tom Hargreaves,S01,Supervisor,32
+E003,Aisha Rahman,S01,Cashier,24
+E004,Luis Ortega,S01,Cashier,20
+E005,Grace Okafor,S01,Cashier,16
+E006,Ben Whitfield,S01,Stock Assistant,24
+E007,Mei Tanaka,S01,Stock Assistant,20
+E008,Sam Patel,S01,Deli Assistant,16
+E009,Hannah Brooks,S01,Bakery Assistant,20
+E010,Ravi Menon,S01,Cashier,12
+E011,Chloe Dubois,S01,Stock Assistant,12
+E012,Omar Haddad,S01,Cashier,16
+E013,Ella Novak,S01,Deli Assistant,8
+E014,Karen Lindqvist,S02,Store Manager,40
+E015,Dev Sharma,S02,Supervisor,32
+E016,Julia Moretti,S02,Cashier,24
+E017,Femi Adeyemi,S02,Cashier,20
+E018,Nina Petrova,S02,Cashier,16
+E019,Jack Sullivan,S02,Stock Assistant,24
+E020,Zoe Chen,S02,Stock Assistant,16
+E021,Mateo Silva,S02,Deli Assistant,20
+E022,Isla Fraser,S02,Bakery Assistant,16
+E023,Arjun Kapoor,S02,Cashier,12
+E024,Leah Cohen,S02,Stock Assistant,12
+E025,Pablo Reyes,S02,Cashier,8

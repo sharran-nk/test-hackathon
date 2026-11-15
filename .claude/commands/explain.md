@@ -1,0 +1,1 @@
+Explain the code changed in the last commit (or $ARGUMENTS if given) as if I must defend it to a panel: what it does in 5 lines, why this design over one alternative, the trade-off, and 3 hard questions a panel could ask with short model answers. Do not change any files.
