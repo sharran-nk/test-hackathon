@@ -4,7 +4,7 @@
 >
 > Passwords, tokens and roster data cross the network unencrypted. The demo logins in this README are public by design, so they must never be used with real data.
 >
-> **Deployment status.** The instance at `http://ec2-13-233-71-31.ap-south-1.compute.amazonaws.com:3000` was last updated on 2026-11-15 with the **earlier build** (shared access key, no database, no accounts). It has **not** been redeployed with the version described below. See [docs/DEPLOY.md](docs/DEPLOY.md).
+> **Live:** `http://ec2-13-233-71-31.ap-south-1.compute.amazonaws.com:3000`. It runs the version described below (source commit `a310f1d`, two containers: app and MongoDB), deployed on 2026-11-16. The manager password is a random value that exists only in the server's `.env`; the `manager123` in this README is the **local** demo value and is refused on the live site. Employee passwords are in `credentials.txt` on the server, to be handed over by `scp`. What was verified on the instance, and what was not, is in [docs/DEPLOY.md](docs/DEPLOY.md). The previous build (shared key) is kept stopped on the same instance for rollback.
 
 ## Overview
 
@@ -265,7 +265,7 @@ docker compose exec -T mongo sh -c 'mongorestore --username "$MONGO_INITDB_ROOT_
 - **Names are never stored or logged.** Logs hold method, path, status, timing, and error names only. Findings use employee IDs.
 - **Employees see the latest saved check, even if it has problems.** There is no draft or publish step.
 - **MongoDB is a single instance.** No replication, no failover, manual backups only.
-- **Ports.** In the Docker test, 3000 (or `APP_PORT`) answered, `mongo` published no port and answered nothing on the LAN addresses of the machine. (A MongoDB installed on the host itself answered on 127.0.0.1:27017; that is unrelated to the container.) The EC2 security group has not been re-checked for this version.
+- **Ports.** In the Docker test, 3000 (or `APP_PORT`) answered, `mongo` published no port and answered nothing on the LAN addresses of the machine. (A MongoDB installed on the host itself answered on 127.0.0.1:27017; that is unrelated to the container.) On EC2 (2026-11-16) from outside: 3000 answers and 27017 gives no answer; the security group has SSH from one address, 3000 and also 80 and 443 open to everyone (nothing listens on 80 or 443).
 - **Quoted commas are not supported** by the hand-written CSV parser. A field such as `"Smith, Jo"` is split and the row is reported as a bad row.
 - **Touching shifts raise `SHORT_REST`.** A shift that ends when the next starts is not an overlap, but has under 11 hours of rest. Whether the customer wants that is unconfirmed.
 - **UI testing is limited.** There is no browser test. The screens are checked by rendering tests plus the manual checklist in `docs/DEMO.md`, which has **not** been ticked by a human yet.

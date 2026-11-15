@@ -1,6 +1,6 @@
 # Solution Design: Roster Checker
 
-Built and running locally in Docker Compose. Not yet redeployed to EC2 (the instance runs an earlier build). Every assumption is unconfirmed; the list is in `docs/ASSUMPTIONS.md`.
+Deployed to EC2 with Docker Compose (commit a310f1d), verified there with 54 API-level checks; not yet clicked through in a browser. Every assumption is unconfirmed; the list is in `docs/ASSUMPTIONS.md`.
 
 ## 1. Problem
 Managers publish rosters, and double-bookings surface only when someone fails to show. By then staff have planned around it. The checker reads the roster before it goes out and lists every conflict with the employee and shift IDs involved. It warns; it never blocks.
@@ -59,4 +59,4 @@ JSON logs without names, secrets or request bodies; health checks on both contai
 Checks stay fast (unmeasured). Limits: one Node process, the 1 MB request cap, one MongoDB node. Next: per-store checks, a worker, a managed database with replication.
 
 ## 10. Remaining limits
-EC2 redeploy pending; no CI; touching shifts raise a short-rest finding (to confirm); no real TTL-expiry observation; Linux seed permissions untested.
+Deployed to EC2 (a310f1d); no CI; touching shifts raise a short-rest finding (to confirm); no real TTL-expiry observation; the live site has not been clicked through in a browser.

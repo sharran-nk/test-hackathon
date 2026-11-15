@@ -2,7 +2,7 @@
 
 Docker Compose on one EC2 instance: the app container and an authenticated MongoDB container.
 
-**Status.** The steps for the app-only build were run on EC2 on 2026-11-15 (see "Earlier results"). The current version (two containers, JWT login, MongoDB) was verified **locally with Docker Compose only** (see "Verified locally"). It has **not** been deployed to EC2, and the EC2 steps below that differ from the earlier ones (MongoDB, `.env`, seeding) have not been run there. Milestone 8 does that.
+**Status.** Deployed to EC2 on 2026-11-16 from commit `a310f1d` (see "Verified on EC2"). The earlier app-only build (shared key) is stopped, not deleted, and can be restored (see "Rollback"). The instance has **not** been rebooted since the swap entry was added to `/etc/fstab`.
 
 The demo is plain HTTP, so it must only ever hold the fictional seed data (see the README warning). Every password and secret is a throwaway used nowhere else.
 
@@ -76,7 +76,7 @@ The log should end with `seed_done` and `employeesCreated: 25`. The passwords ar
 
 - Why the mounts: the image does not contain `employees.csv`, and the credentials must leave the container. `--no-deps` expects `mongo` to be running already.
 - **Git Bash on Windows only:** prefix the command with `MSYS_NO_PATHCONV=1`, otherwise `/seed` and `/out` are rewritten to Windows paths and the seed fails with `seed failed: Error`. This does not apply on the Ubuntu instance.
-- The Linux `install` line is **untested** (the seed run was tested on Windows with Docker Desktop). If the run fails with a permission error, check the owner of `secrets/`.
+- The Linux `install` line worked on the Ubuntu instance (see "Verified on EC2"). If the run fails with a permission error, check the owner of `secrets/`.
 - `credentials.txt` holds plaintext passwords. Give each employee only their own line, then delete the file.
 
 ## 6. Check it
@@ -176,6 +176,38 @@ docker compose exec -T mongo sh -c 'mongorestore --username "$MONGO_INITDB_ROOT_
 
 Copy the file off the instance (for example `scp`, or to S3); a backup on the same disk does not survive losing the disk. The file contains password hashes and roster data: protect it. There is no schedule: run it by hand (or add a cron job; not done). **Verified locally:** backup of 34 documents, database dropped, restore reported 34 restored, and logins plus history worked again. Not yet run on EC2.
 
+## Verified on EC2 (t2.micro, 2026-11-16, commit a310f1d)
+
+How it was deployed: EBS snapshot (`snap-0fa423604d6e66309`), volume 8 to 16 GB with `growpart` and `resize2fs`, swap added to `/etc/fstab`, source copied with `git archive` over SSH (SHA-256 checked, no push to GitHub), new directory `~/roster-checker-v2` (Compose project `roster-checker-v2`), secrets generated on the instance, old image tagged `roster-checker-app:rollback-e89b128`, old container stopped, new stack built and started. Downtime of the public port: about 32 seconds.
+
+Run on the instance against the live stack, 54 checks, all passed:
+- **Accounts:** the seed created 25 employee accounts (and the manager at startup); a second seed run created none; `credentials.txt` has 26 lines (header plus 25), mode 600. Manager and employee logins worked, wrong passwords gave 401, one employee's password did not work for another, and the local demo password `manager123` was refused.
+- **Six findings:** the seed CSVs gave `saved: true` and exactly SHORT_REST E003, DUPLICATE_ROW E005, OVERLAP E007, DATA_BAD_ROW E010, OVERLAP E012, ON_LEAVE E015, counts `1 1 0 2 1 1`, no names.
+- **History and roles:** the saved check was listed and reopened with its 6 findings in order. An employee got 403 on every manager route, the manager got 403 on the employee route, a forged token got 401, and spoofing an employee ID by query, header or URL had no effect. E003 saw only their own SHORT_REST, E005 only DUPLICATE_ROW, E001 nothing, and each response mentioned no other employee ID.
+- **Restart and recreate:** after `docker compose restart app`, and after `down` (no `-v`) then `up -d`, the history entry and all logins survived.
+- **Outage:** with `mongo` stopped, `/health` stayed `ok`, while login, `/api/history`, `/api/check` (no findings returned) and `/api/me/schedule` returned 503 `AUTH_UNAVAILABLE` even with valid tokens. After `mongo` started, history returned 200 without restarting the app, which had a restart count of 0.
+- **Exposure:** `mongo` shows `27017/tcp` unpublished, nothing on the host listens on 27017, and from outside port 27017 gave no answer. The app runs as uid 1000. Port 3000 answered by DNS name and served the same JavaScript bundle (`index-BnzqWk95.js`) as the local build, containing the sign-in screens and the HTTP footer text.
+- **Secrets:** the JWT secret, MongoDB password, manager password, three employee passwords and live tokens were searched for in all container logs, old and new: none found.
+- **Resources:** about 489 MiB of RAM available, 126 MiB of swap in use, `mongo` about 191 MiB and the app about 60 MiB; disk 8.1 GB free.
+
+**Not verified:** anything in a browser (nobody has clicked through the screens on the live site); behaviour after an instance reboot; TTL expiry; backup and restore on EC2 (only locally); load. The security group is unchanged: port 22 only from one address (`223.239.57.17/32`, your IP at the time, which can change), 3000 open to everyone, and 80 and 443 open although nothing listens on them.
+
+### Rollback
+The old container `roster-checker-app-1`, its image (`roster-checker-app:latest`, also tagged `rollback-e89b128`), its directory `~/roster-checker` and its `.env` were left untouched. To go back:
+```bash
+cd ~/roster-checker-v2 && docker compose stop        # stops both new containers, keeps the data volumes
+docker start roster-checker-app-1                    # old build on port 3000 again
+```
+Never use `down -v` in `~/roster-checker-v2`: it deletes the database volume.
+
+### Handing over credentials
+The manager password and the employee passwords exist only on the instance. From your own computer (the output of the first command is a secret: run it in a private terminal and do not paste it anywhere):
+```bash
+ssh -i <key>.pem ubuntu@<host> "grep ^MANAGER_PASSWORD= ~/roster-checker-v2/.env"
+scp -i <key>.pem ubuntu@<host>:/home/ubuntu/roster-checker-v2/secrets/credentials.txt .
+```
+Give each employee only their own line, then delete the file locally and on the instance (`shred -u ~/roster-checker-v2/secrets/credentials.txt`). The passwords cannot be recovered afterwards; the seed script never regenerates an existing account's password.
+
 ## Verified locally (Docker Desktop on Windows, 2026-11-16)
 
 Run against the real Compose stack with an awkward MongoDB password, on host port 3100 because 3000 was in use on that machine:
@@ -190,7 +222,7 @@ Run against the real Compose stack with an awkward MongoDB password, on host por
 - A scan of 296 log lines found none of the passwords, the JWT secret or a live token.
 - Backup, drop, restore (above) and the changed-password behaviour (section 3).
 
-Not verified: anything on EC2 for this version, Linux bind-mount permissions for `secrets/`, a reboot, real TTL expiry, behaviour under load.
+Not verified locally: a reboot, real TTL expiry, behaviour under load. (The EC2 run above covers the Linux bind-mount permissions for `secrets/`.)
 
 ## Earlier results (app-only build, EC2, 2026-11-15)
 
