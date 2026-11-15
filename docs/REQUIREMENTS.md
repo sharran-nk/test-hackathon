@@ -137,26 +137,26 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | FR-11 | Summary with counts, skipped rows, truncated, clear, saved | Must | Response `summary` | `app/server/routes/check.js` | `app/tests/api.test.js` | implemented |
 | FR-12 | Unknown employee or store ID reported | Must | Rule `UNKNOWN_REF` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | verified |
 | FR-13 | Shared key required in `Authorization: Bearer` header | Must | Auth middleware | `app/server/auth.js` | `app/tests/api.test.js` (missing, wrong, right key; wrong scheme; also on history routes) | implemented |
-| FR-14 | React dashboard: manual key entry, load files, red/green banner, severity badges, findings table | Must | Single-page UI | `app/client/src/App.jsx` | manual (demo checklist) + `app/tests/security.test.js` (source scan) | planned |
+| FR-14 | React dashboard: manual key entry, load files, red/green banner, severity badges, findings table | Must | Single-page UI | `app/client/src/App.jsx`, `app/client/src/Results.jsx` | manual (demo checklist) + `app/tests/security.test.js` (source scan) | implemented |
 | FR-15 | Deterministic fix hints | Should | Hint templates | `app/server/rules/hints.js` | `app/tests/hints.test.js` | planned |
 | FR-16 | Seed data gives exactly the 6 planted problems, no false positives | Should | Seed run | `case/seed/` | `app/tests/seed.test.js` (exactly 6 findings through the API) | verified |
 | FR-17 | Result independent of row order | Should | Sorting in rules | `app/server/rules/index.js` | `app/tests/rules.test.js` | verified |
 | FR-18 | Dashboard filter by rule or severity | Should | Results filter | `app/client/src/App.jsx` | manual | planned |
 | FR-19 | Dashboard download findings as JSON | Should | Download button | `app/client/src/App.jsx` | manual | planned |
 | FR-20 | Optional AI explanation, off by default | Could | Explain step, `AI_MODE` | `app/server/explain.js` | `app/tests/explain.test.js` | planned |
-| FR-21 | Dashboard sample-data button loads the seed files in one click | Must | Sample button | `app/client/src/App.jsx` | manual (demo checklist) | planned |
+| FR-21 | Dashboard sample-data button loads the seed files in one click | Must | Sample button | `app/client/src/App.jsx` | manual (demo checklist) | implemented |
 | FR-22 | Rest hours and leave statuses by env var | Could | Config | `app/server/config.js` | `app/tests/config.test.js` | planned |
 | FR-23 | Save roster rows (no names), result and findings | Must | Persistence in `POST /api/check` | `app/server/models/*.js`, `app/server/routes/check.js` | `app/tests/db.test.js` (round trip; no names stored) | planned |
 | FR-24 | List saved results, newest first | Must | `GET /api/results` | `app/server/routes/results.js` | `app/tests/db.test.js` | planned |
 | FR-25 | Open one saved result; 404 if missing | Must | `GET /api/results/:id` | `app/server/routes/results.js` | `app/tests/db.test.js` | planned |
 | FR-26 | Delete a saved result | Should | `DELETE /api/results/:id` | `app/server/routes/results.js` | `app/tests/db.test.js` | planned |
-| FR-27 | Dashboard History list; reopen a saved result | Must | History list | `app/client/src/App.jsx` | manual | planned |
+| FR-27 | Dashboard History list; reopen a saved result | Must | History list | `app/client/src/App.jsx` | manual | planned (placeholder section only) |
 | NFR-S1 | Key compared in constant time; never logged or returned | Must | Auth middleware, logger | `app/server/auth.js` | `app/tests/api.test.js` (key absent from 401, 500 bodies and captured logs) | verified |
-| NFR-S2 | No secrets in code or git; key not in frontend source or build | Must | `.env.example`, `.gitignore`, Vite build | `.env.example`, `app/client/` | `app/tests/security.test.js` (client source has no `ACCESS_KEY` or `VITE_` key use; built files don't contain the test key) + secret grep (in `/final`) | planned |
+| NFR-S2 | No secrets in code or git; key not in frontend source or build | Must | `.env.example`, `.gitignore`, Vite build | `.env.example`, `app/client/` | `app/tests/security.test.js` (client source has no `ACCESS_KEY` or `VITE_` key use; built files don't contain the test key) + secret grep (in `/final`) | verified |
 | NFR-S3 | Size limit, validation, safe IDs in queries | Must | Body limit, validation | `app/server/index.js`, `app/server/routes/results.js` | `app/tests/api.test.js` (bad ID, object in body) | implemented |
-| NFR-S4 | No outside calls, short dependency list | Must | Whole app | `app/package.json` | manual review (section 4) | planned |
-| NFR-S5 | Findings shown as text, not HTML | Must | React rendering | `app/client/src/App.jsx` | `app/tests/security.test.js` (no `dangerouslySetInnerHTML`) + manual | planned |
-| NFR-S6 | Key in frontend memory only | Must | React state | `app/client/src/App.jsx` | `app/tests/security.test.js` (no `localStorage`, `sessionStorage` or `document.cookie`) + manual reload check | planned |
+| NFR-S4 | No outside calls, short dependency list | Must | Whole app | `app/package.json` | `app/tests/security.test.js` (no URLs in source, short client dependency list) + manual network-tab check | implemented |
+| NFR-S5 | Findings shown as text, not HTML | Must | React rendering | `app/client/src/App.jsx`, `app/client/src/Results.jsx` | `app/tests/security.test.js` (no `dangerouslySetInnerHTML`) + manual | implemented |
+| NFR-S6 | Key in frontend memory only | Must | React state | `app/client/src/App.jsx` | `app/tests/security.test.js` (no `localStorage`, `sessionStorage` or `document.cookie`) + manual reload check | implemented |
 | NFR-S7 | HTTP-only demo notice; only port 3000 published; Mongo port never published | Must | Compose `ports`, dashboard banner, README | `docker-compose.yml`, `app/client/src/App.jsx`, `README.md` | manual deploy check (section 4) | planned |
 | NFR-S8 | DB credentials only server-side, never in responses or logs | Must | Config, logger, error handler | `app/server/config.js`, `app/server/db.js` | `app/tests/security.test.js`, `app/tests/db.test.js` (URI and password absent from responses and logs, including a connection failure) | planned |
 | NFR-P1 | No names in logs | Must | Logger | `app/server/logger.js` | `app/tests/api.test.js` (request and 500 logs contain no key or names) | verified |
