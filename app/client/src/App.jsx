@@ -1,17 +1,25 @@
-import React, { useState } from 'react';
-import { Landing, EmployeeNotice, SignIn } from './Screens.jsx';
-import { Portal, HistoryScreen } from './Portal.jsx';
+import React, { useCallback, useState } from 'react';
+import { Landing, SignIn } from './Screens.jsx';
+import { Portal } from './Portal.jsx';
 import { Dashboard } from './Dashboard.jsx';
 import { UploadScreen } from './Upload.jsx';
 import { ResultsScreen } from './Results.jsx';
+import { HistoryScreen } from './History.jsx';
+import { EmployeePortal } from './EmployeePortal.jsx';
+import { login, logout, runCheck } from './api.js';
+import { allowedScreen, apiOutcome, loginOutcome } from './session.js';
 import { NOTICE } from './brand.js';
 import sampleEmployees from './sample/employees.csv?raw';
 import sampleShifts from './sample/shifts.csv?raw';
 import sampleLeave from './sample/leave.csv?raw';
 
 // One page, no router: `screen` and `section` decide what is shown. Everything lives in React
-// state (memory only). The access key is never written to browser storage, cookies or the URL,
-// so a reload signs the manager out.
+// state (memory only). The sign-in token is never written to browser storage, cookies or the URL,
+// so a reload signs the person out.
+//
+// Screens: landing | signin (role chosen) | manager | employee.
+// The manager and employee screens are protected: allowedScreen() only shows them when the
+// signed-in role matches. (The server enforces the same rule on every request.)
 
 const EMPTY_FILES = { employees: null, shifts: null, leave: null };
 const MAX_FILE_BYTES = 1024 * 1024; // matches the server's default 1 MB limit
@@ -25,26 +33,14 @@ function readText(file) {
   });
 }
 
-// The only network call from the page. The key goes in the Authorization header, never in a URL.
-async function callApi(accessKey, payload) {
-  const res = await fetch('/api/check', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessKey}` },
-    body: JSON.stringify(payload),
-  });
-  let body = null;
-  try {
-    body = await res.json();
-  } catch {
-    body = null;
-  }
-  return { status: res.status, body };
-}
-
-export default function App() {
-  const [screen, setScreen] = useState('landing'); // landing | employee | signin | portal
+// `initial` exists so tests can render a screen directly; the page itself passes nothing.
+export default function App({ initial = {} }) {
+  const [screen, setScreen] = useState(initial.screen || 'landing');
+  const [role, setRole] = useState(initial.role || 'manager'); // which login option was chosen
+  const [session, setSession] = useState(initial.session || null); // { token, user }, memory only
   const [section, setSection] = useState('dashboard'); // dashboard | upload | results | history
-  const [accessKey, setAccessKey] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [signInNotice, setSignInNotice] = useState('');
   const [files, setFiles] = useState(EMPTY_FILES); // { name, text } per slot
   const [result, setResult] = useState(null); // the last check result
@@ -52,14 +48,20 @@ export default function App() {
   const [uploadNotice, setUploadNotice] = useState(null); // { where, text, retry? }
   const [busy, setBusy] = useState(false);
 
-  function go(next) {
+  const shown = allowedScreen(session, screen);
+
+  function chooseLogin(next) {
+    setRole(next);
+    setUsername(next === 'manager' ? 'manager' : '');
+    setPassword('');
     setSignInNotice('');
-    setScreen(next);
+    setScreen('signin');
   }
 
-  // Clears everything held in memory: the key, the loaded files and the last result.
+  // Clears everything held in memory: the token, the loaded files and the last result.
   function clearAll() {
-    setAccessKey('');
+    setSession(null);
+    setPassword('');
     setFiles(EMPTY_FILES);
     setResult(null);
     setCheckedFiles(null);
@@ -67,37 +69,49 @@ export default function App() {
     setSection('dashboard');
   }
 
-  function logout() {
+  // Ends the session on the server too (best effort: if that fails the token still expires).
+  async function logoutNow() {
+    const token = session && session.token;
     clearAll();
     setSignInNotice('');
     setScreen('landing');
+    if (token) {
+      try { await logout(token); } catch { /* the token expires by itself */ }
+    }
   }
 
-  // TEMPORARY. The API has no sign-in endpoint yet, so the key is checked by sending an empty
-  // request to /api/check. The server checks the key before it looks at the body, so a wrong
-  // key always gets 401 and a right key gets 400 (the empty body is invalid). Nothing is saved
-  // or checked. This will be replaced by a proper manager sign-in endpoint.
+  // The server said 401 (expired, logged out elsewhere, account switched off).
+  const sessionEnded = useCallback((outcome) => {
+    clearAll();
+    setSignInNotice(outcome.text);
+    setScreen('signin');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function signIn(event) {
     event.preventDefault();
     setSignInNotice('');
-    if (accessKey.trim() === '') {
-      setSignInNotice('Enter the password to sign in.');
+    if (username.trim() === '' || password === '') {
+      setSignInNotice('Enter your username and password.');
       return;
     }
     setBusy(true);
     try {
-      const { status } = await callApi(accessKey, {});
-      if (status === 400) {
-        setScreen('portal');
-      } else if (status === 401) {
-        setAccessKey(''); // a rejected key is forgotten
-        setSignInNotice('That password was not accepted. Try again.');
+      const { status, body } = await login(username.trim(), password);
+      const outcome = loginOutcome(role, status, body);
+      if (outcome.kind === 'ok') {
+        setSession(outcome.session);
+        setSection('dashboard');
+        setScreen(role);
       } else {
-        setSignInNotice(`The server could not check the password (status ${status}). Try again.`);
+        if (outcome.kind === 'wrong-role') {
+          try { await logout(outcome.token); } catch { /* it expires by itself */ }
+        }
+        setSignInNotice(outcome.text);
       }
     } catch {
       setSignInNotice('Could not reach the server. Check your connection and try again.');
     } finally {
+      setPassword(''); // the password is never kept after it has been sent
       setBusy(false);
     }
   }
@@ -143,27 +157,23 @@ export default function App() {
     }
     setBusy(true);
     try {
-      const { status, body } = await callApi(accessKey, {
+      const { status, body } = await runCheck(session.token, {
         employees: files.employees.text,
         shifts: files.shifts.text,
         leave: files.leave ? files.leave.text : '',
       });
-      if (status === 401) {
-        // The password no longer works: sign out and say why.
-        clearAll();
-        setSignInNotice('Your password was not accepted. Sign in again.');
-        setScreen('signin');
-      } else if (status === 413) {
-        setUploadNotice({ where: 'run', text: 'The files are too large for the server (limit 1 MB in total). Use smaller files.' });
-      } else if (status === 400) {
-        setUploadNotice({ where: 'run', text: `The server could not use these files: ${body?.error?.message || 'the request was invalid.'}` });
-      } else if (status !== 200 || !body || !body.summary) {
-        const ref = body?.error?.requestId ? ` Reference: ${body.error.requestId}.` : '';
-        setUploadNotice({ where: 'run', text: `The server had a problem (status ${status}).${ref}`, retry: true });
-      } else {
+      const outcome = apiOutcome(status, body);
+      if (outcome.kind === 'expired') {
+        sessionEnded(outcome);
+      } else if (outcome.kind === 'ok' && body && body.summary) {
         setResult(body);
         setCheckedFiles(files);
         setSection('results');
+      } else if (outcome.kind === 'ok') {
+        setUploadNotice({ where: 'run', text: 'The server answered in a way this page does not understand.', retry: true });
+      } else {
+        const text = outcome.kind === 'invalid' ? `The server could not use these files: ${outcome.text}` : outcome.text;
+        setUploadNotice({ where: 'run', text, retry: outcome.kind === 'unavailable' || outcome.kind === 'error' });
       }
     } catch {
       setUploadNotice({ where: 'run', text: 'Could not reach the server. Check your connection.', retry: true });
@@ -173,22 +183,23 @@ export default function App() {
   }
 
   let content;
-  if (screen === 'employee') {
-    content = <EmployeeNotice onBack={() => go('landing')} />;
-  } else if (screen === 'signin') {
+  if (shown === 'signin') {
     content = (
       <SignIn
-        accessKey={accessKey}
-        setAccessKey={setAccessKey}
+        role={role}
+        username={username}
+        setUsername={setUsername}
+        password={password}
+        setPassword={setPassword}
         onSubmit={signIn}
-        onBack={() => go('landing')}
+        onBack={() => { setSignInNotice(''); setScreen('landing'); }}
         busy={busy}
         notice={signInNotice}
       />
     );
-  } else if (screen === 'portal') {
+  } else if (shown === 'manager') {
     content = (
-      <Portal section={section} onSection={setSection} onLogout={logout}>
+      <Portal section={section} onSection={setSection} onLogout={logoutNow}>
         {section === 'dashboard' && <Dashboard files={files} result={result} onGo={setSection} />}
         {section === 'upload' && (
           <UploadScreen
@@ -201,11 +212,13 @@ export default function App() {
           />
         )}
         {section === 'results' && <ResultsScreen result={result} files={checkedFiles} onGo={setSection} />}
-        {section === 'history' && <HistoryScreen />}
+        {section === 'history' && <HistoryScreen token={session.token} onEnd={sessionEnded} />}
       </Portal>
     );
+  } else if (shown === 'employee') {
+    content = <EmployeePortal session={session} onLogout={logoutNow} onEnd={sessionEnded} />;
   } else {
-    content = <Landing onEmployee={() => go('employee')} onManager={() => go('signin')} />;
+    content = <Landing onEmployee={() => chooseLogin('employee')} onManager={() => chooseLogin('manager')} />;
   }
 
   return (

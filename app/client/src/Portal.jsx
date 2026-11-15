@@ -49,22 +49,3 @@ export function Portal({ section, onSection, onLogout, children }) {
     </div>
   );
 }
-
-// Placeholder until the database exists (milestone 4). No database code is built yet.
-export function HistoryScreen() {
-  return (
-    <section className="page">
-      <h1>Roster History</h1>
-      <div className="placeholder">
-        <IconHistory size={28} />
-        <div>
-          <h2>Available after the database is added</h2>
-          <p className="muted">
-            Saved roster checks will be listed here so they can be reopened. Until then each check
-            is shown once and is not stored.
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}

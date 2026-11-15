@@ -36,11 +36,28 @@ describe('client source: no browser storage, no HTML injection (NFR-S5, NFR-S6)'
     expect(offenders(codeFiles, /dangerouslySetInnerHTML|innerHTML|outerHTML|insertAdjacentHTML|\beval\(|new Function\(/)).toEqual([]);
   });
 
-  test('the key is only sent in the Authorization header, never put in a URL', () => {
+  test('the token is only sent in the Authorization header, never put in a URL', () => {
+    const api = read(path.join(SRC, 'api.js'));
     const app = read(path.join(SRC, 'App.jsx'));
-    expect(app).toMatch(/Authorization: `Bearer \$\{accessKey\}`/);
-    expect(app).not.toMatch(/location\.(search|hash|href)\s*=|history\.(push|replace)State|URLSearchParams/);
-    expect(app).toMatch(/fetch\('\/api\/check',/); // the URL is a fixed string with no key in it
+    expect(api).toMatch(/headers\.Authorization = `Bearer \$\{token\}`/);
+    // No token or password inside any URL string, and nothing that writes to the address bar.
+    expect(api).not.toMatch(/`[^`]*\/api[^`]*\$\{token\}/);
+    expect(api).not.toMatch(/[?&](token|password|key)=/i);
+    for (const src of [api, app]) {
+      expect(src).not.toMatch(/location\.(search|hash|href)\s*=|history\.(push|replace)State|URLSearchParams/);
+    }
+    // fetch is called in one place only (api.js), with a path chosen by the code, not by the user.
+    expect(offenders(codeFiles, /\bfetch\(/)).toEqual(['src/api.js']);
+  });
+
+  test('the old shared access key is gone from the client', () => {
+    expect(offenders(codeFiles, /accessKey|access key|ACCESS_KEY/i)).toEqual([]);
+  });
+
+  test('the session is held in React state only, and the password is cleared after it is sent', () => {
+    const app = read(path.join(SRC, 'App.jsx'));
+    expect(app).toMatch(/useState\(initial\.session \|\| null\)/);
+    expect(app).toMatch(/setPassword\(''\); \/\/ the password is never kept/);
   });
 });
 

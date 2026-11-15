@@ -101,6 +101,12 @@ export function ResultsScreen({ result, files, onGo }) {
         </ul>
       </div>
 
+      {result.saved === false && (
+        <p className="data-line cut" role="alert">
+          <IconWarning size={18} /> This result was not saved to history (the database was not available). The findings below are still correct.
+        </p>
+      )}
+
       {result.summary.truncated && (
         <p className="data-line cut" role="alert">
           <IconWarning size={18} /> The list was cut off at the maximum number of findings, so there are more problems than shown.

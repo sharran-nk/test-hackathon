@@ -95,7 +95,7 @@ h1, h2, h3 { text-wrap: balance; }
 
 .field { display: flex; flex-direction: column; gap: var(--s1); margin-bottom: var(--s4); }
 .field > span { font-weight: 600; }
-.field input[type="password"] {
+.field input[type="password"], .field input[type="text"] {
   min-height: 40px;
   padding: var(--s2) var(--s3);
   border: 1px solid var(--edge);
@@ -349,3 +349,10 @@ h1, h2, h3 { text-wrap: balance; }
 .data-list { margin: 0; padding: 0 var(--s4) var(--s3) calc(var(--s3) + 26px); }
 .data-list li { margin-bottom: var(--s2); overflow-wrap: anywhere; }
 .data-ok { margin: 0; }
+
+/* ---------- Sign-in for both roles, history, employee portal ---------- */
+.btn-danger { background: var(--white); border-color: var(--error); color: var(--error); }
+.alert .btn { margin-left: auto; }
+.employee-page { display: flex; flex-direction: column; gap: var(--s4); padding-top: var(--s4); padding-bottom: var(--s5); flex: 1; }
+.issues { margin: 0; padding-left: var(--s5); display: flex; flex-direction: column; gap: var(--s2); }
+.topbar .row { gap: var(--s3); }
