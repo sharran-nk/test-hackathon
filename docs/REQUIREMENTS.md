@@ -127,12 +127,12 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | FR-01 | Accept CSV text in a JSON body, check, save, return | Must | `POST /api/check` | `app/server/routes/check.js` | `app/tests/api.test.js` | planned |
 | FR-02 | Hand-written CSV parse and row validation | Must | CSV parser | `app/server/parse/csv.js` | `app/tests/parse.test.js` | verified |
 | FR-03 | Missing or malformed date or time reported | Must | Rule `DATA_BAD_ROW` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | verified |
-| FR-04 | Exact duplicate reported once, excluded from other rules | Must | Rule `DUPLICATE_ROW` | `app/server/rules/duplicate.js` | `app/tests/rules.test.js` | planned |
-| FR-05 | Same-store overlap; all pairs incl. nested and 3-way; truncation flag | Must | Rule `OVERLAP` | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (seed pair, nested, 3-way, cap) | planned |
-| FR-06 | Cross-store overlap names both stores | Must | Rule `OVERLAP` (cross-store) | `app/server/rules/overlap.js` | `app/tests/rules.test.js` | planned |
-| FR-07 | Touching shifts are not an overlap | Must | Rule `OVERLAP` boundary | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (end = start) | planned |
-| FR-08 | Shift on approved leave | Must | Rule `ON_LEAVE` | `app/server/rules/leave.js` | `app/tests/rules.test.js` | planned |
-| FR-09 | Under 11h rest; exactly 11h allowed | Must | Rule `SHORT_REST` | `app/server/rules/rest.js` | `app/tests/rules.test.js` | planned |
+| FR-04 | Exact duplicate reported once, excluded from other rules | Must | Rule `DUPLICATE_ROW` | `app/server/rules/duplicate.js` | `app/tests/rules.test.js` | verified |
+| FR-05 | Same-store overlap; all pairs incl. nested and 3-way; truncation flag | Must | Rule `OVERLAP` | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (seed pair, nested, 3-way, cap) | verified |
+| FR-06 | Cross-store overlap names both stores | Must | Rule `OVERLAP` (cross-store) | `app/server/rules/overlap.js` | `app/tests/rules.test.js` | verified |
+| FR-07 | Touching shifts are not an overlap | Must | Rule `OVERLAP` boundary | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (end = start) | verified |
+| FR-08 | Shift on approved leave | Must | Rule `ON_LEAVE` | `app/server/rules/leave.js` | `app/tests/rules.test.js` | verified |
+| FR-09 | Under 11h rest; exactly 11h allowed | Must | Rule `SHORT_REST` | `app/server/rules/rest.js` | `app/tests/rules.test.js` | verified |
 | FR-10 | Finding fields: rule, severity, employee, shifts, message | Must | Response `findings[]` | `app/server/rules/index.js` | `app/tests/api.test.js` | planned |
 | FR-11 | Summary with counts, skipped rows, truncated, clear, saved | Must | Response `summary` | `app/server/routes/check.js` | `app/tests/api.test.js` | planned |
 | FR-12 | Unknown employee or store ID reported | Must | Rule `UNKNOWN_REF` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | verified |
@@ -140,7 +140,7 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | FR-14 | React dashboard: manual key entry, load files, red/green banner, severity badges, findings table | Must | Single-page UI | `app/client/src/App.jsx` | manual (demo checklist) + `app/tests/security.test.js` (source scan) | planned |
 | FR-15 | Deterministic fix hints | Should | Hint templates | `app/server/rules/hints.js` | `app/tests/hints.test.js` | planned |
 | FR-16 | Seed data gives exactly the 6 planted problems, no false positives | Should | Seed run | `case/seed/` | `app/tests/seed.test.js` | planned |
-| FR-17 | Result independent of row order | Should | Sorting in rules | `app/server/rules/index.js` | `app/tests/rules.test.js` | planned |
+| FR-17 | Result independent of row order | Should | Sorting in rules | `app/server/rules/index.js` | `app/tests/rules.test.js` | verified |
 | FR-18 | Dashboard filter by rule or severity | Should | Results filter | `app/client/src/App.jsx` | manual | planned |
 | FR-19 | Dashboard download findings as JSON | Should | Download button | `app/client/src/App.jsx` | manual | planned |
 | FR-20 | Optional AI explanation, off by default | Could | Explain step, `AI_MODE` | `app/server/explain.js` | `app/tests/explain.test.js` | planned |
@@ -165,12 +165,12 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | NFR-P4 | IDs only in the dashboard | Must | Response shape | `app/server/rules/index.js` | `app/tests/api.test.js` | planned |
 | NFR-P5 | Expiry on every stored record | Must | TTL index on `expiresAt` | `app/server/models/*.js` | `app/tests/db.test.js` (TTL index exists, `expiresAt` set from `RETENTION_DAYS`) | planned |
 | NFR-F1 | ~150 shifts in under 2s, including saving | Must | Whole check | `app/server/routes/check.js` | `app/tests/perf.test.js` | planned |
-| NFR-F2 | Sweep-line overlap, O(n log n + k) | Must | Group, sort, active set | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (nested, 3-way, touching, same-start, cap) + `app/tests/perf.test.js` | planned |
+| NFR-F2 | Sweep-line overlap, O(n log n + k) | Must | Group, sort, active set | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (nested, 3-way, touching, same-start, cap) + `app/tests/perf.test.js` | implemented |
 | NFR-F3 | Request size limit | Must | Body parser limit | `app/server/index.js` | `app/tests/api.test.js` | planned |
 | NFR-R1 | Bad input returns a clear 4xx, no crash | Must | Error handler | `app/server/index.js` | `app/tests/api.test.js` | planned |
 | NFR-R2 | `GET /health` with database state | Must | Health route | `app/server/index.js` | `app/tests/api.test.js` (`db` field added in M4) | implemented |
 | NFR-R3 | Structured logging | Must | Logger | `app/server/logger.js` | `app/tests/api.test.js` (no-names check still to add) | implemented |
-| NFR-R4 | Same input, same output and order | Must | Whole check | `app/server/rules/index.js` | `app/tests/rules.test.js` | planned |
+| NFR-R4 | Same input, same output and order | Must | Whole check | `app/server/rules/index.js` | `app/tests/rules.test.js` | verified |
 | NFR-R5 | AI failure falls back to template | Could | Explain step | `app/server/explain.js` | `app/tests/explain.test.js` | planned |
 | NFR-R6 | Config from env vars only | Must | Config | `app/server/config.js` | `app/tests/api.test.js` (config describe block) | verified |
 | NFR-R7 | Containers restart | Must | Compose restart policy | `docker-compose.yml` | manual (deploy check) | planned |
