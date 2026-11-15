@@ -125,8 +125,8 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | Req ID | Requirement | Priority | Feature or endpoint | File | Test | Status |
 |---|---|---|---|---|---|---|
 | FR-01 | Accept CSV text in a JSON body, check, save, return | Must | `POST /api/check` | `app/server/routes/check.js` | `app/tests/api.test.js` | planned |
-| FR-02 | Hand-written CSV parse and row validation | Must | CSV parser | `app/server/parse/csv.js` | `app/tests/parse.test.js` | planned |
-| FR-03 | Missing or malformed date or time reported | Must | Rule `DATA_BAD_ROW` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | planned |
+| FR-02 | Hand-written CSV parse and row validation | Must | CSV parser | `app/server/parse/csv.js` | `app/tests/parse.test.js` | verified |
+| FR-03 | Missing or malformed date or time reported | Must | Rule `DATA_BAD_ROW` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | verified |
 | FR-04 | Exact duplicate reported once, excluded from other rules | Must | Rule `DUPLICATE_ROW` | `app/server/rules/duplicate.js` | `app/tests/rules.test.js` | planned |
 | FR-05 | Same-store overlap; all pairs incl. nested and 3-way; truncation flag | Must | Rule `OVERLAP` | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (seed pair, nested, 3-way, cap) | planned |
 | FR-06 | Cross-store overlap names both stores | Must | Rule `OVERLAP` (cross-store) | `app/server/rules/overlap.js` | `app/tests/rules.test.js` | planned |
@@ -135,7 +135,7 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | FR-09 | Under 11h rest; exactly 11h allowed | Must | Rule `SHORT_REST` | `app/server/rules/rest.js` | `app/tests/rules.test.js` | planned |
 | FR-10 | Finding fields: rule, severity, employee, shifts, message | Must | Response `findings[]` | `app/server/rules/index.js` | `app/tests/api.test.js` | planned |
 | FR-11 | Summary with counts, skipped rows, truncated, clear, saved | Must | Response `summary` | `app/server/routes/check.js` | `app/tests/api.test.js` | planned |
-| FR-12 | Unknown employee or store ID reported | Must | Rule `UNKNOWN_REF` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | planned |
+| FR-12 | Unknown employee or store ID reported | Must | Rule `UNKNOWN_REF` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | verified |
 | FR-13 | Shared key required in `Authorization: Bearer` header | Must | Auth middleware | `app/server/auth.js` | `app/tests/api.test.js` (missing, wrong, right key; wrong scheme; also on history routes) | planned |
 | FR-14 | React dashboard: manual key entry, load files, red/green banner, severity badges, findings table | Must | Single-page UI | `app/client/src/App.jsx` | manual (demo checklist) + `app/tests/security.test.js` (source scan) | planned |
 | FR-15 | Deterministic fix hints | Should | Hint templates | `app/server/rules/hints.js` | `app/tests/hints.test.js` | planned |
