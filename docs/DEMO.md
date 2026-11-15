@@ -79,7 +79,7 @@ Status: **not yet run by a human.** The screens were rendered to HTML in Node an
 - [ ] `http://<EC2 public IP>:3000/health` returns `{"status":"ok"}`.
 - [ ] The dashboard works from another machine with the sample data.
 - [ ] Only port 3000 answers from outside. Ports 22 (from other IPs) and 27017 do not.
-- [ ] `docker kill` the app container: it comes back by itself.
+- [ ] Crash recovery: on the instance run `sudo kill -9 $(sudo docker inspect -f '{{.State.Pid}}' roster-checker-app-1)`, wait 20 seconds, and `docker compose ps` shows it healthy again (`restarts=1`). **Do not use `docker kill` in the demo:** Docker restarts a container after a crash but not after a manual `docker kill`, which it treats as a deliberate stop (seen on the instance: exit 137, stayed down). If that happens, run `docker compose up -d`. For a restart on demand, `docker compose restart` works, but it is a manual restart and does not show the automatic recovery.
 
 ## C. History and database checklist (milestone 4, not done yet)
 - [ ] A check appears in the History list and can be reopened after a reload.

@@ -62,7 +62,7 @@ Errors: 400, 401, 404, 413, 500, and 503 for history only.
 Jest and Supertest: parsing, each rule (nested, three-way, touching, exactly 11h), the seed files giving exactly six findings, API and key checks, and database tests against a real MongoDB. GitHub Actions comes later. The dashboard and deployment are checked by hand. There are no UI tests.
 
 ## 8. Operability
-`GET /health` (with database state), JSON logs without names, `restart: unless-stopped`, clear error messages. If the database is down, checks still return findings with `saved: false`.
+`GET /health` (with database state), JSON logs without names, `restart: unless-stopped`, clear error messages. If the database is down, checks still return findings with `saved: false`. Docker restarts the container after a crash (seen live with `kill -9`) but not after a manual `docker kill`. The demo uses `kill -9` or `docker compose restart`.
 
 ## 9. Scaling: 10x volume
 The check should stay fast (O(n log n + k), unmeasured). Limits: one Node process, request size, one database node. Next: check one store at a time, a worker, a managed database.

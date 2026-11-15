@@ -136,10 +136,10 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | FR-10 | Finding fields: rule, severity, employee, shifts, message | Must | Response `findings[]` | `app/server/rules/index.js` | `app/tests/api.test.js` | verified |
 | FR-11 | Summary with counts, skipped rows, truncated, clear, saved | Must | Response `summary` | `app/server/routes/check.js` | `app/tests/api.test.js` | implemented |
 | FR-12 | Unknown employee or store ID reported | Must | Rule `UNKNOWN_REF` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | verified |
-| FR-13 | Shared key required in `Authorization: Bearer` header | Must | Auth middleware | `app/server/auth.js` | `app/tests/api.test.js` (missing, wrong, right key; wrong scheme; also on history routes) | implemented |
+| FR-13 | Shared key required in `Authorization: Bearer` header | Must | Auth middleware | `app/server/auth.js` | `app/tests/api.test.js` (missing, wrong, right key; wrong scheme; also on history routes) | verified (tests pass; live on EC2: 401 without a key, 2026-11-15; history routes not built) |
 | FR-14 | FreshMart portal: manager sign-in, upload, status bar, findings table | Must | Single-page UI | `app/client/src/` (`App`, `Screens`, `Portal`, `Dashboard`, `Upload`, `Results`) | manual (docs/DEMO.md section A) + `app/tests/describe.test.js` (rows and counts) + `app/tests/security.test.js` (source scan) | implemented |
 | FR-15 | Deterministic fix hints | Should | Hint templates | `app/server/rules/hints.js` | `app/tests/hints.test.js` | planned |
-| FR-16 | Seed data gives exactly the 6 planted problems, no false positives | Should | Seed run | `case/seed/` | `app/tests/seed.test.js` (exactly 6 findings through the API) | verified |
+| FR-16 | Seed data gives exactly the 6 planted problems, no false positives | Should | Seed run | `case/seed/` | `app/tests/seed.test.js` (exactly 6 findings through the API) | verified (tests pass; live on EC2: the same 6 findings, 2026-11-15) |
 | FR-17 | Result independent of row order | Should | Sorting in rules | `app/server/rules/index.js` | `app/tests/rules.test.js` | verified |
 | FR-18 | Dashboard filter by rule or severity | Should | Results filter | `app/client/src/App.jsx` | manual | planned |
 | FR-19 | Dashboard download findings as JSON | Should | Download button | `app/client/src/App.jsx` | manual | planned |
@@ -157,7 +157,7 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | NFR-S4 | No outside calls, short dependency list | Must | Whole app | `app/package.json` | `app/tests/security.test.js` (no URLs in source, short client dependency list) + manual network-tab check | implemented |
 | NFR-S5 | Findings shown as text, not HTML | Must | React rendering | `app/client/src/` (`App`, `Screens`, `Portal`, `Dashboard`, `Upload`, `Results`) | `app/tests/security.test.js` (no `dangerouslySetInnerHTML`) + manual | implemented |
 | NFR-S6 | Key in frontend memory only | Must | React state | `app/client/src/App.jsx` | `app/tests/security.test.js` (no `localStorage`, `sessionStorage` or `document.cookie`) + manual reload check | implemented |
-| NFR-S7 | HTTP-only demo notice; only port 3000 published; Mongo port never published | Must | Compose `ports`, dashboard banner, README | `docker-compose.yml`, `app/client/src/App.jsx`, `README.md` | manual deploy check (section 4) | planned |
+| NFR-S7 | HTTP-only demo notice; only port 3000 published; Mongo port never published | Must | Compose `ports`, dashboard banner, README | `docker-compose.yml`, `app/client/src/App.jsx`, `README.md` | manual deploy check (section 4); `app/tests/notice.test.js` (notice text and contrast in the client source) | verified for port exposure (live on EC2, 2026-11-15: 3000 answers, 27017 does not, but no database is deployed); notice tested in source, not yet looked at in a browser on the live URL; SSH (22) answered from my laptop on a hotspot and its rule sources were not checked, so the security group may still need narrowing |
 | NFR-S8 | DB credentials only server-side, never in responses or logs | Must | Config, logger, error handler | `app/server/config.js`, `app/server/db.js` | `app/tests/security.test.js`, `app/tests/db.test.js` (URI and password absent from responses and logs, including a connection failure) | planned |
 | NFR-P1 | No names in logs | Must | Logger | `app/server/logger.js` | `app/tests/api.test.js` (request and 500 logs contain no key or names) | verified |
 | NFR-P2 | Minimal stored data, no names | Must | Mongoose schemas | `app/server/models/*.js` | `app/tests/db.test.js` (stored documents contain no name, role or hours) | planned |
@@ -168,12 +168,12 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | NFR-F2 | Sweep-line overlap, O(n log n + k) | Must | Group, sort, active set | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (nested, 3-way, touching, same-start, cap) + `app/tests/perf.test.js` | implemented |
 | NFR-F3 | Request size limit | Must | Body parser limit | `app/server/index.js` | `app/tests/api.test.js` | verified |
 | NFR-R1 | Bad input returns a clear 4xx, no crash | Must | Error handler | `app/server/index.js` | `app/tests/api.test.js` | verified |
-| NFR-R2 | `GET /health` with database state | Must | Health route | `app/server/index.js` | `app/tests/api.test.js` (`db` field added in M4) | implemented |
+| NFR-R2 | `GET /health` with database state | Must | Health route | `app/server/index.js` | `app/tests/api.test.js` (`db` field added in M4) | verified for `status` (live on EC2: `{"status":"ok"}`, 2026-11-15); `db` field planned (M4) |
 | NFR-R3 | Structured logging | Must | Logger | `app/server/logger.js` | `app/tests/api.test.js` | verified |
 | NFR-R4 | Same input, same output and order | Must | Whole check | `app/server/rules/index.js` | `app/tests/rules.test.js` | verified |
 | NFR-R5 | AI failure falls back to template | Could | Explain step | `app/server/explain.js` | `app/tests/explain.test.js` | planned |
 | NFR-R6 | Config from env vars only | Must | Config | `app/server/config.js` | `app/tests/api.test.js` (config describe block) | verified |
-| NFR-R7 | Containers restart | Must | Compose restart policy | `docker-compose.yml` | manual (deploy check) | planned |
+| NFR-R7 | Containers restart | Must | Compose restart policy | `docker-compose.yml` | manual (deploy check) | verified for a crash (live on EC2, 2026-11-15: `kill -9` of the app process, container restarted, `restarts=1`, healthy). Not restarted by `docker kill` (manual stop). Reboot not tested. |
 | NFR-R8 | A test per testable requirement, run before each commit; manual checks listed with reasons | Must | Test suite | `app/tests/` | this table and section 4 | planned |
 | NFR-R9 | Database failure: check still returns findings; history gives 503 | Must | Persistence error handling | `app/server/db.js`, `app/server/routes/check.js` | `app/tests/db.test.js` (unreachable database) | planned |
 | NFR-R10 | Saved results survive a restart | Must | Named volume for MongoDB | `docker-compose.yml` | manual deploy check (section 4) | planned |
@@ -187,7 +187,7 @@ Everything not listed here has an automated test in the table above. Database te
 |---|---|---|---|
 | Dashboard behaviour: key prompt, sample-data button, files load, banner and severity badges show, reload asks for the key again and History opens | FR-14, FR-21, FR-27, FR-18, FR-19, NFR-S6 | Component tests need jsdom and Testing Library, which are extra dev dependencies plus setup time. The source-scan tests in `tests/security.test.js` cover the storage and HTML rules in the code. | Walk through the checklist in the browser |
 | Deployment exposure: only port 3000 answers from outside, the database port doesn't, and the unencrypted-HTTP notice is visible | NFR-S7 | Needs the real EC2 host and its security group | Open `http://<EC2 public IP>:3000`, check the banner, and try ports 27017 and 22 from another machine |
-| Restart after a crash or reboot; saved results still there | NFR-R7, NFR-R10 | Needs the real host and real volumes | `docker kill` each container, reboot, then list results |
+| Restart after a crash or reboot; saved results still there | NFR-R7, NFR-R10 | Needs the real host and real volumes | Kill each app process with `kill -9` from the host (`docker kill` is a manual stop and is not restarted), reboot, then list results |
 | Expiry actually deletes records | NFR-P5 | MongoDB's TTL cleaner runs about once a minute in its own process. The test checks that the index and the date are set. | Once, with `RETENTION_DAYS` set very low on a test instance |
 | No outside calls, short dependency list | NFR-S4 | Proving that nothing calls out needs a running browser or network capture | Review `package.json`, grep the built files for external URLs, and check the browser network tab in the demo |
 | Live URL main flow, no secrets in files or history | (submission) | Needs the deployed system | `/final`: `curl` the URL with the seed data, then grep files and git history |
