@@ -1,0 +1,6 @@
+leave_id,employee_id,start_date,end_date,status
+L001,E015,2026-11-24,2026-11-25,approved
+L002,E005,2026-11-16,2026-11-17,approved
+L003,E021,2026-11-26,2026-11-28,approved
+L004,E009,2026-11-20,2026-11-20,approved
+L005,E002,2026-11-27,2026-11-29,approved

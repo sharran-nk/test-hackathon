@@ -5,7 +5,8 @@ const { loadConfig } = require('../server/config');
 const KEY = 'test-key-1234567890';
 const silent = { info() {}, warn() {}, error() {} };
 const config = loadConfig({ ACCESS_KEY: KEY });
-const app = createApp(config, { logger: silent });
+// clientDir: null so these API tests never depend on whether the React build exists.
+const app = createApp(config, { logger: silent, clientDir: null });
 
 describe('scaffold', () => {
   test('GET /health returns ok without a key', async () => {
@@ -148,6 +149,41 @@ describe('unexpected errors', () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]).toContain('"/api/check"');
     expect(lines[0]).not.toMatch(new RegExp(`${KEY}|Priya|E001|A1`));
+  });
+});
+
+describe('serving the React build', () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'client-dist-'));
+  fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>Roster Checker</title>');
+  fs.writeFileSync(path.join(dir, 'app.js'), 'console.log(1)');
+  const withClient = createApp(config, { logger: silent, clientDir: dir });
+  afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  test('GET / returns the page, with a CSP header', async () => {
+    const res = await request(withClient).get('/');
+    expect(res.status).toBe(200);
+    expect(res.type).toBe('text/html');
+    expect(res.headers['content-security-policy']).toContain("default-src 'self'");
+  });
+
+  test('static files are served', async () => {
+    expect((await request(withClient).get('/app.js')).status).toBe(200);
+  });
+
+  test('/health and /api are not swallowed by the page fallback', async () => {
+    expect((await request(withClient).get('/health')).body).toEqual({ status: 'ok' });
+    const res = await request(withClient).get('/api/check');
+    expect(res.status).toBe(401);
+    expect(res.type).toBe('application/json');
+  });
+
+  test('without a build, / is a JSON 404 and the API still works', async () => {
+    const none = createApp(config, { logger: silent, clientDir: path.join(dir, 'missing') });
+    expect((await request(none).get('/')).status).toBe(404);
+    expect((await request(none).get('/health')).status).toBe(200);
   });
 });
 

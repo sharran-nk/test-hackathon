@@ -9,7 +9,7 @@ const { loadConfig } = require('../server/config');
 
 const KEY = 'seed-test-key-123456';
 const silent = { info() {}, warn() {}, error() {} };
-const app = createApp(loadConfig({ ACCESS_KEY: KEY }), { logger: silent });
+const app = createApp(loadConfig({ ACCESS_KEY: KEY }), { logger: silent, clientDir: null });
 const read = (f) => fs.readFileSync(path.join(__dirname, '../../case/seed', f), 'utf8');
 
 let res;

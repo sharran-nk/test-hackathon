@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const { createLogger } = require('./logger');
 const { requireKey } = require('./auth');
@@ -9,9 +11,20 @@ const fail = (res, status, code, message, extra = {}) =>
   res.status(status).json({ error: { code, message, ...extra } });
 
 // Builds the Express app. Kept separate from listen() so Supertest can use it.
-function createApp(config, { logger = createLogger() } = {}) {
+// clientDir is the built React app (client/dist). If it does not exist (for example in
+// the API tests), the API still works and "/" is simply a 404.
+function createApp(config, { logger = createLogger(), clientDir = path.join(__dirname, '../client/dist') } = {}) {
   const app = express();
   app.disable('x-powered-by');
+
+  // The page may only load its own files and call its own API (no CDN, no outside calls).
+  app.use((req, res, next) => {
+    res.set({
+      'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'",
+      'X-Content-Type-Options': 'nosniff',
+    });
+    next();
+  });
 
   // One log line per request: method, path, status, duration. No body, no headers.
   app.use((req, res, next) => {
@@ -38,6 +51,14 @@ function createApp(config, { logger = createLogger() } = {}) {
   app.use('/api', requireKey(config.accessKey));
   app.use('/api', express.json({ limit: `${config.maxBodyKb}kb` }));
   app.use('/api', createCheckRouter(config));
+
+  // The React app: static files, and index.html for any other GET that is not the API.
+  if (clientDir && fs.existsSync(path.join(clientDir, 'index.html'))) {
+    app.use(express.static(clientDir));
+    app.get(/^\/(?!api\/|health$).*/, (req, res) => {
+      res.sendFile(path.join(clientDir, 'index.html'));
+    });
+  }
 
   app.use((req, res) => fail(res, 404, 'NOT_FOUND', 'No such route.'));
 
