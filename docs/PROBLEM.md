@@ -12,14 +12,14 @@ Roster mistakes such as double-booked staff are found after the roster has gone 
 
 ## 3. Version for a technical panel
 
-A pre-publish validation service. Input is a roster (shifts), an employee list and approved leave. Output is a list of structured findings. Each finding has a rule ID, severity, employee, shift IDs and a fix hint, plus a summary of whether the roster is safe to publish. The core is a deterministic rules engine:
+A pre-publish validation service on React + Vite, Node.js + Express and MongoDB (Mongoose), run with Docker Compose on AWS EC2 over plain HTTP for the hackathon demo. Input is a roster (shifts), an employee list and approved leave. Output is a list of structured findings, each with a rule ID, severity, employee ID, shift IDs and a message, plus a summary of whether the roster is clear to publish. Each check and its findings are saved, so earlier results can be listed and reopened. The core is a deterministic rules engine:
 
 1. Parse and validate each row. Bad rows become findings and are excluded from the other rules.
 2. Drop exact duplicate rows and report them.
-3. Group shifts by employee and sort by start time. Compare neighbours to find overlaps, which covers both same-store and cross-store clashes, and to find rest gaps under the minimum.
+3. Group shifts by employee and sort them by start time. Overlaps are found with a **sweep-line and an active set**: before each shift is compared, shifts that have already ended (end at or before this start) are dropped from the active set, and the shift is then paired with every shift still active. This reports every overlapping pair, including a shift nested inside another and three or more shifts that overlap together, and it covers same-store and cross-store clashes with the same code. Touching shifts are not an overlap. Rest gaps under the minimum are found from the latest earlier end.
 4. Compare each shift with the employee's approved leave dates.
 
-Sorting makes this O(n log n), which matters for the 10x question. Only the date, time and ID fields drive the logic, so names don't need to appear in logs. No third-party APIs are needed. AI is optional, for example to phrase findings in plain English, and the app must work without it. Building beats buying here because the rules (rest period, leave policy, cross-store clashes) are specific to the chain, and the check must sit inside their publish step. **(assumption)** A generic rostering package may have some of this built in, and we haven't checked what the chain already uses.
+The overlap sweep costs O(n log n + k), where n is the number of shifts and k is the number of overlapping pairs reported. The sort is the n log n part, and each comparison produces a reported pair, so work grows with the output and not with n squared. That matters for the 10x question. Only the date, time and ID fields drive the logic. Names are dropped when the files are read and are never stored or logged. No third-party APIs are needed. AI is optional, for example to phrase findings in plain English, and the app must work without it. Building beats buying here because the rules (rest period, leave policy, cross-store clashes) are specific to the chain, and the check must sit inside their publish step. **(assumption)** A generic rostering package may have some of this built in, and we haven't checked what the chain already uses.
 
 ## 4. Who has the pain, and why
 
@@ -37,6 +37,7 @@ Sorting makes this O(n log n), which matters for the 10x question. Only the date
 | Speed | A 2-store, 2-week roster (about 150 shifts) checked in under 2 seconds |
 | Finding quality | Every finding names the employee, the shift IDs, the rule and a suggested fix |
 | Robustness | Malformed rows are reported and never crash the run |
+| Retrieval | A saved result can be listed and reopened with the same findings |
 | Offline | Works with no AI and no third-party API |
 | Business outcome **(proposed, sponsor to confirm)** | Double-bookings discovered after publication fall from today's monthly count towards 0. The current baseline is unknown. |
 
@@ -58,24 +59,27 @@ Sorting makes this O(n log n), which matters for the 10x question. Only the date
 - F6. Missing or malformed fields reported and skipped, not crashed on.
 - F7. Each finding has a severity, a plain explanation and the shift IDs involved.
 - F8. A summary that says whether the roster is clear to publish.
-- F9. A way to load a roster: file upload, or a call to the API.
+- F9. A way to load a roster: CSV files chosen in a React dashboard, sent to the API.
+- F10. Each check is saved, and users can list earlier validation results and reopen one.
 
 ### Non-functional
 
 - N1. Correct and explainable: the same input always gives the same output, and every flag shows its rule.
 - N2. Validate all input and return clear error messages.
-- N3. No secrets in code. No personal data in logs (names stay out of logs).
+- N3. No secrets in code. No personal data in logs (names stay out of logs). Database credentials are never in frontend code, responses or logs.
 - N4. Structured logging and `GET /health`.
 - N5. Automated tests for each requirement.
 - N6. Config through environment variables.
 - N7. Works without AI.
-- N8. Fast enough for chain scale: the check is O(n log n) per roster.
+- N8. Fast enough for chain scale: the overlap check is O(n log n + k) per roster, where k is the number of overlapping pairs.
+- N9. Stored data is minimal: IDs, dates, times and findings. No employee names. Stored data is deleted after a retention period (30 days is my assumption).
+- N10. A database failure must not stop a check from returning its findings.
 
 ## 7. Constraints
 
 - **Time:** about 4 hours of build in total (design 1.5h, build and host 2.5h per `CLAUDE.md`), then submission and demo prep.
-- **Stack:** React, Node.js (Express), Jest and Supertest, Docker, MongoDB or SQL. Anything else must be cleared with the user first.
-- **Hosting:** AWS by default (EC2 and Docker Compose), with a live URL in the README.
+- **Stack (mandatory):** React + Vite, Node.js + Express, MongoDB with Mongoose, Docker and Docker Compose, and AWS EC2. The demo is served over plain HTTP, with fictional data and a temporary key. Tests use Jest and Supertest. Anything else must be cleared with the user first.
+- **Hosting:** AWS EC2 with Docker Compose, with a live URL (`http://<EC2 public IP>:3000`) in the README, marked as unencrypted and for fictional data only.
 - **AI:** a bonus only. The app must work without it.
 - **Scope:** small and finished beats ambitious. Only what is in the files earns credit.
 - **Data:** the seed data is fictional. Real rosters would hold employee personal data, so privacy rules apply.
@@ -95,7 +99,8 @@ Sorting makes this O(n log n), which matters for the 10x question. Only the date
 | Minimum cover, breaks, skills, opening hours | Not checked. |
 | Scale: stores, staff, rosters per week | A few stores and a few hundred staff. I will state what 10x looks like. |
 | Time zones, overnight shifts, daylight-saving changes | One time zone, and each shift starts and ends on the same day. |
-| How a roster is identified (version, week, draft or published) | One roster per upload. |
+| How a roster is identified (version, week, draft or published) | One roster per upload. Each upload is saved as its own record. |
+| How long stored rosters and results may be kept, and who can delete them | 30 days, then deleted automatically. IDs only, no names. |
 | Who may see findings, and who may upload (access control) | A simple access gate, or none for the demo. To be decided in the design. |
 | How success is measured today | No baseline is given. |
 | Existing systems to integrate with | None assumed. |
@@ -143,5 +148,6 @@ Only rows 5 and 6 are caught by looking at a single row or column. The other fou
 - **Hours over contract:** four people exceed contracted weekly hours because of the planted shifts (E003, E007, E012 and E015). Not one of the six problems, and not checked.
 - **Weak schema:** no roster ID, version or draft/published status, no break times, no time zone, no required role per shift, no store opening hours or minimum cover.
 - **Narrow data:** `leave.csv` has only `approved` rows, so pending or rejected leave is untested. Shifts use few time patterns, and none run overnight.
-- **Personal data:** names are the only personal data, and they are fictional. There are no emails, phone numbers, dates of birth or addresses. Employee IDs are pseudonymous. Real names would still be personal data, so the app must keep them out of logs and show IDs where it can.
+- **Personal data:** names are the only direct personal data, and they are fictional. There are no emails, phone numbers, dates of birth or addresses. Employee IDs are pseudonymous. Real names would still be personal data, so the app drops them when the files are read and never stores or logs them. Stored rosters hold IDs, stores, dates and times, which are still personal data in a pseudonymous form, so they get a retention limit.
 - **Duplicate trap:** the duplicate row also looks like an overlap with itself. The app must report one duplicate, not a double-booking.
+- **Zero false positives:** the seed answer key lists exactly six problems. Anything else reported on the seed data is a false positive and a failure of the target.

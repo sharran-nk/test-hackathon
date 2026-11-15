@@ -37,13 +37,13 @@ Every item below is **a guess, not a requirement**. None has been confirmed by t
 | D7 | Only `approved` leave blocks a shift. Pending or rejected leave is ignored. The seed has only `approved`. | Needed for the leave rule. | A shift on pending leave isn't flagged, or rejected leave wrongly blocks someone. | "Which leave statuses should stop a shift being rostered?" |
 | D8 | Leave covers whole days, from `start_date` to `end_date` inclusive. | Seed leave has dates, no times. | Half-days or hourly leave exist, and shifts are wrongly flagged or missed. | "Is leave ever part of a day?" |
 | D9 | Employee and store IDs in `shifts.csv` always exist in the employee list. An unknown ID is reported as an error. The seed has none. | Needed to avoid crashing on bad references. | Real data has staff not yet in the list (new starters, agency staff), which we flag as errors. | "Where does the employee list come from, and is it always up to date?" |
-| D10 | One upload is one roster. There's no versioning, no draft or published status, and no history. | The seed has no roster ID or status. | The customer wants to compare versions, or check only changes since the last publication. | "Do you want to check a new version against the last published one?" |
+| D10 | One upload is one roster, saved as its own record. There's no versioning, no draft or published status, and no comparison between uploads. The seed has no roster ID or status. | Needed so each saved result has a clear scope. | The customer wants to compare versions, or check only changes since the last publication. | "Do you want to check a new version against the last published one?" |
 
 ## Security and privacy
 
 | ID | Assumption | Why needed | Risk if wrong | Clarifying question I would ask the customer |
 |---|---|---|---|---|
-| S1 ★ | Names are personal data. Real rosters would hold real names, so logs use employee IDs only, and uploaded files are not kept after the check unless the customer asks. | Sets privacy and logging rules. The seed has fictional names only. | Personal data ends up in logs or on disk, which breaches policy or data protection law. If the customer needs to keep results, we've built the wrong thing. | "Can we store rosters? For how long? Which privacy rules apply (for example GDPR)? Who may see staff names?" |
+| S1 ★ | Names are personal data, so they are dropped when the files are read and never stored or logged. MongoDB keeps only IDs, stores, dates, times and findings, for 30 days (`RETENTION_DAYS`, my assumption), then deletes them. Logs use IDs only. | Sets privacy, storage and logging rules. The seed has fictional names only. | Names or IDs end up where they shouldn't, which breaches policy or data protection law. If the customer needs longer history or names shown, the stored data and the UI change. | "How long may we keep rosters and results? Which privacy rules apply (for example GDPR)? Who may see staff IDs, and do names need to be shown?" |
 | S2 | A simple access gate (or none for the demo) is enough. There's no single sign-on. | Needed to decide on authentication. | Real use needs login tied to the company's identity system. | "How do your staff sign in to internal tools?" |
 | S3 | Uploaded files are untrusted: size-limited, type-checked and parsed safely. | Input validation is a project rule. | A large or crafted file crashes or slows the app. | "Are there any limits on file size or format we should know?" |
 | S4 | Roster data is internal, not highly sensitive (no pay, no health data). | Sets the security level. | Leave reasons or pay rates are attached later, which changes the level required. | "Does the leave data include reasons (such as sickness) or pay?" |
@@ -74,7 +74,7 @@ Every item below is **a guess, not a requirement**. None has been confirmed by t
 2. **B2** The tool warns and doesn't block.
 3. **B3** 11h minimum rest.
 4. **D1** Roster arrives as CSV in the seed shape.
-5. **S1** Names are personal data, so IDs-only logs and no storage.
+5. **S1** Names are personal data, so IDs-only logs, names never stored, and a 30-day expiry on what is stored.
 
 ## Decisions I must make before coding
 
@@ -85,7 +85,7 @@ These are mine to decide, not the customer's. Each one affects the code.
 3. **What the app reports for each finding.** Fields, severity levels and the wording. For example error versus warning, with the duplicate and bad-date rows as data-quality findings.
 4. **Order of checks.** Validate rows, drop duplicates, then run rules on valid rows only. This decides whether a bad row can hide a conflict.
 5. **Input method.** File upload, JSON body or both. And whether the three CSVs come together or separately.
-6. **Storage.** Whether to store anything at all. With S1 as assumed, nothing is stored, which may mean no database and a simpler build. MongoDB or SQL is only needed if results are kept.
+6. **Storage.** Settled by the mandatory stack: MongoDB with Mongoose, as a container on EC2 (see `docs/DECISIONS.md`). Still to confirm with the customer: the 30-day retention and IDs-only storage (S1).
 7. **What the user sees.** A web page, an API or both. Decides whether React is needed in the time box.
 8. **Access gate.** None, a shared key or a login. The CLAUDE.md stack includes JWT and bcrypt, but I should add only what the demo needs.
 9. **How rules are configured.** The minimum rest (11h) and the severity per rule, in environment variables or a small config file.
@@ -113,7 +113,7 @@ These are mine to decide, not the customer's. Each one affects the code.
 | Very large upload | D2, S3 | Needs a size limit. |
 | Same data in a different order | D1 | Results should not depend on row order. |
 | Contracted hours exceeded | B5 | Seed has four such people. The tool is silent on them, so the summary could look "all clear" when a manager expects a warning. |
-| Findings containing names | S1 | Need to show a person to be useful, but names stay out of logs. |
+| Findings containing names | S1 | Names are never stored, so findings and saved results show employee IDs only. |
 
 ## Not assumed (still open)
 
