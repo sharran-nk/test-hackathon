@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import sampleEmployees from './sample/employees.csv?raw';
 import sampleShifts from './sample/shifts.csv?raw';
 import sampleLeave from './sample/leave.csv?raw';
-import { SummaryBanner, FindingsTable, DataQuality, HistoryPlaceholder } from './Results.jsx';
+import { Verdict, FindingsTable, DataQuality, HistoryPlaceholder } from './Results.jsx';
 
 // One page, no router. Everything lives in React state (memory only): the access key is
 // never written to browser storage, cookies or the URL, so a reload asks for it again.
@@ -114,12 +114,13 @@ export default function App() {
 
   return (
     <>
-      <header className="top">
+      <p className="notice">Demo over unencrypted HTTP. Use fictional data only.</p>
+      <header className="masthead wrap">
         <h1>Roster Checker</h1>
-        <p className="notice">Demo over unencrypted HTTP. Use fictional data only.</p>
+        <p>Find double-bookings before a roster goes out.</p>
       </header>
 
-      <main className="page">
+      <main className="wrap">
         <section className="card" aria-labelledby="inputs-h">
           <h2 id="inputs-h">1. Roster files</h2>
 
@@ -158,7 +159,7 @@ export default function App() {
 
         {result && (
           <>
-            <SummaryBanner summary={result.summary} findings={result.findings} />
+            <Verdict summary={result.summary} />
             <FindingsTable findings={result.findings} />
             <DataQuality findings={result.findings} summary={result.summary} />
           </>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { IconCheckCircle, IconError } from './Icons.jsx';
 
 // Everything here is rendered as plain text through React. Nothing from the server is ever
 // injected as HTML.
@@ -24,31 +25,52 @@ function Badge({ severity }) {
   return <span className={`badge badge-${severity === 'error' ? 'error' : 'warning'}`}>{text}</span>;
 }
 
-export function SummaryBanner({ summary, findings }) {
-  const errors = findings.filter((f) => f.severity === 'error').length;
-  const warnings = findings.filter((f) => f.severity === 'warning').length;
-  const clear = summary.clear;
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+// The verdict slab: the answer in one glance. Colour is not the only signal: the heading,
+// the icon and the sentence all say the same thing in words.
+export function Verdict({ summary }) {
+  const c = summary.counts;
+  const overlaps = c.OVERLAP || 0;
+  const rest = c.SHORT_REST || 0;
+  const leave = c.ON_LEAVE || 0;
+  const data = (c.DATA_BAD_ROW || 0) + (c.DUPLICATE_ROW || 0) + (c.UNKNOWN_REF || 0);
+  const problems = overlaps + rest + leave;
+
+  let sentence;
+  if (summary.clear) {
+    sentence = `No problems found in ${plural(summary.shiftsChecked, 'shift', 'shifts')}. This roster is ready to go out.`;
+  } else if (problems > 0) {
+    sentence = `${plural(problems, 'problem needs', 'problems need')} fixing before this roster goes out.`;
+  } else {
+    sentence = `No clashes found, but ${plural(data, 'data issue needs', 'data issues need')} a look before this roster goes out.`;
+  }
+
+  const numbers = [
+    [overlaps, 'Double-booked'],
+    [rest, 'Short rest'],
+    [leave, 'On leave'],
+    [data, data === 1 ? 'Data issue' : 'Data issues'],
+  ];
+
   return (
-    <section className={`banner ${clear ? 'banner-green' : 'banner-red'}`} aria-live="polite">
-      <h2>{clear ? 'Clear to publish' : 'Not clear to publish'}</h2>
-      <p>
-        {clear
-          ? 'No problems were found in this roster.'
-          : `${findings.length} finding(s): ${errors} error(s), ${warnings} warning(s).`}
-      </p>
-      <ul className="counts">
-        {RULE_ORDER.map((rule) => (
-          <li key={rule} className={summary.counts[rule] ? '' : 'zero'}>
-            <strong>{summary.counts[rule] || 0}</strong> {label(rule)}
+    <section className={`verdict ${summary.clear ? 'verdict-green' : 'verdict-red'}`} aria-live="polite">
+      <div className="verdict-title">
+        {summary.clear ? <IconCheckCircle size={44} /> : <IconError size={44} />}
+        <h2>{summary.clear ? 'Clear to publish' : 'Not clear to publish'}</h2>
+      </div>
+      <p className="verdict-sentence">{sentence}</p>
+      <ul className="numbers">
+        {numbers.map(([n, what]) => (
+          <li key={what} className={n === 0 ? 'zero' : ''}>
+            <span className="n">{n}</span>
+            <span className="what">{what}</span>
           </li>
         ))}
       </ul>
-      <p className="meta">
-        Shifts received: {summary.shiftsReceived}. Checked: {summary.shiftsChecked}. Rows skipped: {summary.rowsSkipped}.
-      </p>
       {summary.truncated && (
-        <p className="truncated" role="alert">
-          Warning: the list was cut off at the maximum number of findings. There are more problems than are shown here.
+        <p className="verdict-note" role="alert">
+          The list was cut off at the maximum number of findings, so there are more problems than shown.
         </p>
       )}
     </section>
