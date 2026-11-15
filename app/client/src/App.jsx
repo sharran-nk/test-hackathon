@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import sampleEmployees from './sample/employees.csv?raw';
 import sampleShifts from './sample/shifts.csv?raw';
 import sampleLeave from './sample/leave.csv?raw';
+import { SummaryBanner, FindingsTable, DataQuality, HistoryPlaceholder } from './Results.jsx';
 
 // One page, no router. Everything lives in React state (memory only): the access key is
 // never written to browser storage, cookies or the URL, so a reload asks for it again.
@@ -156,10 +157,14 @@ export default function App() {
         </section>
 
         {result && (
-          <section className="card" aria-live="polite">
-            <p>Result received: {result.findings.length} finding(s).</p>
-          </section>
+          <>
+            <SummaryBanner summary={result.summary} findings={result.findings} />
+            <FindingsTable findings={result.findings} />
+            <DataQuality findings={result.findings} summary={result.summary} />
+          </>
         )}
+
+        <HistoryPlaceholder />
       </main>
     </>
   );

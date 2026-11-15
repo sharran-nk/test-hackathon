@@ -84,3 +84,28 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   border: 1px solid #f1b5ae;
   border-radius: 4px;
 }
+
+.muted { color: var(--muted); }
+
+/* Summary banner: colour is never the only signal, the heading and counts are text too. */
+.banner { border: 2px solid; border-radius: 6px; padding: 14px 20px; margin-bottom: 16px; }
+.banner h2 { margin: 0 0 4px; font-size: 1.3rem; }
+.banner p { margin: 4px 0; }
+.banner-red { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.banner-green { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.counts { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 0; margin: 10px 0; color: var(--text); }
+.counts .zero { color: var(--muted); }
+.meta { color: var(--text); font-size: 0.9rem; }
+.truncated { background: var(--amber-bg); color: var(--amber); border: 1px solid #f0d58a; border-radius: 4px; padding: 8px 10px; font-weight: 600; }
+
+.badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: 700; border: 1px solid; }
+.badge-error { background: var(--red-bg); color: var(--red); border-color: #f1b5ae; }
+.badge-warning { background: var(--amber-bg); color: var(--amber); border-color: #f0d58a; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { background: var(--bg); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
+
+.quality { margin: 8px 0 0; padding-left: 18px; }
+.quality li { margin-bottom: 6px; }
