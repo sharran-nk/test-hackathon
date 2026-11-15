@@ -212,3 +212,17 @@ h1, h2, h3 { text-wrap: balance; }
   .nav-item[aria-current="page"] { border-bottom-color: var(--green); }
   .nav-logout { margin: 0; padding: 0; border-top: 0; }
 }
+
+/* ---------- Dashboard tiles ---------- */
+.tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); }
+.tile { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); }
+.tile-label { display: flex; align-items: center; gap: var(--s2); color: var(--muted); font-weight: 600; }
+.tile-value { display: flex; align-items: center; gap: var(--s2); font-size: 1.75rem; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.tile-sub { font-size: 0.8125rem; color: var(--muted); }
+.tile-ok .tile-value { color: var(--green-ink); }
+.tile-bad .tile-value { color: var(--error); }
+
+.latest { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; padding: var(--s3) var(--s4); background: var(--side); border-radius: var(--radius); }
+
+@media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 380px) { .tiles { grid-template-columns: minmax(0, 1fr); } }

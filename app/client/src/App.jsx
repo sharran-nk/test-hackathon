@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Landing, EmployeeNotice, SignIn } from './Screens.jsx';
 import { Portal, HistoryScreen } from './Portal.jsx';
+import { Dashboard } from './Dashboard.jsx';
 import { NOTICE } from './brand.js';
 
 const EMPTY_FILES = { employees: null, shifts: null, leave: null };
@@ -100,6 +101,8 @@ export default function App() {
       <Portal section={section} onSection={setSection} onLogout={logout}>
         {section === 'history' ? (
           <HistoryScreen />
+        ) : section === 'dashboard' ? (
+          <Dashboard files={files} result={result} onGo={setSection} />
         ) : (
           <section className="page">
             <h1>{SECTION_TITLE[section]}</h1>
