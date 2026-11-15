@@ -82,7 +82,7 @@ curl.exe -s http://<ip>:3000/health
 2. Choose the manager sign-in. The password is the access key from step 3.
 3. On the upload screen click **Use sample data**, then **Run validation**.
 
-The HTTP-only notice required by the Milestone 3 acceptance line is not in the UI yet. Add it (or note it as a gap in the README) before hand-in.
+A thin amber footer on every screen reads "Demo over unencrypted HTTP. Use fictional data only." (checked in the source by `app/tests/notice.test.js`; not yet looked at in a browser on the live URL).
 
 ## 7. Check the six problems
 
