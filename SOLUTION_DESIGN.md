@@ -1,72 +1,62 @@
 # Solution Design: Roster Checker
 
-**Status: design only. Nothing is built or tested yet.** Every assumption below is unconfirmed. Detail is in `docs/ARCHITECTURE_FULL.md`.
+Built and running locally in Docker Compose. Not yet redeployed to EC2 (the instance runs an earlier build). Every assumption is unconfirmed; the list is in `docs/ASSUMPTIONS.md`.
 
-## 1. Problem in my words
-Managers publish rosters, and double-bookings surface only when someone fails to show or turns up twice. By then staff have planned around it and the shop is short. I'd build a checker that reads the roster before it goes out and lists every conflict with the people and shifts involved.
+## 1. Problem
+Managers publish rosters, and double-bookings surface only when someone fails to show. By then staff have planned around it. The checker reads the roster before it goes out and lists every conflict with the employee and shift IDs involved. It warns; it never blocks.
 
-## 2. Assumptions (top 7, with risk)
-- "Double-booked" means any time overlap, at any store. *Risk: they also want back-to-back shifts at two stores flagged.*
-- The roster arrives as three CSVs shaped like the seed. *Risk: real exports differ.*
-- The tool warns and never blocks. *Risk: they expect a hard stop.*
-- At least 11h rest between shifts. *Risk: policy or law differs.*
-- Only approved leave counts. *Risk: pending leave is missed.*
-- One time zone, no overnight shifts. *Risk: night stores are mis-checked.*
-- IDs are enough, names are dropped. *Risk: users want names shown.*
+## 2. Key assumptions (risk if wrong)
+- Double-booked means any time overlap, at any store (they may also want back-to-back shifts at two stores flagged).
+- Rosters arrive as three CSVs shaped like the seed (real exports differ).
+- 11h minimum rest; only approved leave counts; one time zone, no overnight shifts.
+- Names are dropped on read; only IDs are stored. Records expire after 30 days.
+- One shared manager account; employees see the latest saved check (there is no publish step).
 
-## 3. Requirements and scope
-**In (first build):** detect the six seed problems with zero false positives: same-store overlap, cross-store overlap, shift on approved leave, rest under 11h, exact duplicate rows, malformed or unknown-reference rows. A React dashboard with a sample-data button, red or green banner, severity badges, findings table and History list. MongoDB saving of results. A shared access key, an Express REST API, deployment on one EC2 instance.
-**Should:** GitHub Actions tests, delete route, filters, fix hints.
-**Last, optional:** AI that only rewords existing findings (off by default, IDs, times and rule names only, 10s timeout, template fallback).
-**Out:** roster generation, rostering-system integration, hours and overtime rules, accounts, versioning.
+## 3. Scope
+**In:** six rules with zero false positives on the seed (same-store and cross-store overlap, shift on leave, rest under 11h, duplicate rows, bad or unknown rows). Manager and employee login. Saved history. **Out:** roster generation, rostering-system integration, hours rules, password reset, AI.
 
 ## 4. Architecture
 ```mermaid
 flowchart LR
-  U["Browser: React dashboard"] -->|"HTTP :3000"| A
-  subgraph EC2["EC2, Docker Compose"]
-    subgraph APP["app container"]
-      A["Express: auth + routes + React build"] --> P["Parser + validator"] --> E["Rules engine"]
-    end
-    D[("mongo container, no public port")]
+  B["Browser: React"] -->|"HTTP :3000, JWT"| A
+  subgraph EC2["One host, Docker Compose"]
+    A["app: Express + React build"] -->|"private network"| M[("mongo: auth on, named volume, no published port")]
   end
-  A --> D
 ```
-**Overlap (3 lines):** sort each person's shifts by start. For each shift, drop active shifts ending at or before its start (touching is not overlap), then pair it with every shift still active. This finds every pair, including nested and three-way, in O(n log n + k), stopping at 1000 findings with a visible flag.
+Express holds auth, routes, the parser and the rules. The rules never touch the database. Overlap detection sorts each person's shifts, drops active shifts that end at or before the next start (touching is not overlap), and pairs the rest. That finds nested and three-way overlaps in O(n log n + k) and stops at 1000 findings with a visible flag.
 
-| Method | Endpoint | Purpose |
+**Data:** `users` (bcrypt hash), `rosters` (rows that passed validation, no names), `validationresults`, `findings` (one document each, ordered). A save writes roster, findings, then the result last, with cleanup on failure. MongoDB here has no transactions, so none are used.
+
+| Endpoint | Who | Purpose |
 |---|---|---|
-| GET | `/health` | Process and database state |
-| POST | `/api/check` | Check and save one roster (CSV text in JSON) |
-| GET | `/api/results` | List saved results |
-| GET | `/api/results/:id` | Open one result |
-| GET | `/` | The React app |
+| `POST /api/auth/login`, `/logout`, `GET /me` | all | JWT sign-in |
+| `POST /api/check` | manager | check and save a roster |
+| `GET/DELETE /api/history[/:id]` | manager | paginated list, open, delete |
+| `GET /api/me/schedule` | employee | own shifts, leave, findings only |
+| `GET /health` | all | process alive (not the database) |
 
-Errors: 400, 401, 404, 413, 500, and 503 for history only.
-
-## 5. Key decisions and trade-offs
-- **MongoDB built last:** it is milestone 4, so a late finish costs history, not the checker.
-- **Plain rules, no AI:** results are deterministic and explainable.
-- **Hand-written CSV parser:** no dependency, but quoted commas are unsupported.
-- **Sweep-line, not neighbour comparison:** neighbours miss nested overlaps.
-- **Plain HTTP:** no domain or certificate work, but unencrypted.
-- **Build vs buy:** I haven't checked what their rostering tool already does. If it has these checks, switch them on. I'd build because the rules (11h rest, cross-store clashes) are chain-specific and must run just before publishing. "Quicker" is my estimate, not measured.
+## 5. Decisions and trade-offs
+- **JWT with a database check on every request.** Roles and account state are enforced on the server and take effect at once (deactivate an account and its token stops). Cost: **fail closed**: if MongoDB is down, login and checking return 503. That is deliberate. Only a failed save, after the account was verified, gives findings with `saved: false`.
+- **MongoDB in a container on the same host, not Atlas.** No account, no outside call, no public port. Cost: one disk, manual backups, no failover.
+- **Plain rules, no AI.** Deterministic and explainable.
+- **Hand-written CSV parser.** No dependency; quoted commas are unsupported.
+- **Plain HTTP.** No domain or certificate work, but tokens and data are unencrypted.
+- **Build vs buy.** I have not checked their rostering tool. If it has these checks, use them. I'd build because rules like 11h rest and cross-store clashes are chain-specific and must run just before publishing.
 
 ## 6. Security and privacy
-- **HTTP only:** the key and roster data are not encrypted. Use fictional data and a temporary key only, and change it after judging.
-- The key is typed by the user, kept in memory only, sent as `Authorization: Bearer`, compared in constant time, never logged or returned.
-- Names are dropped on read, never stored or logged. Stored IDs expire after 30 days (assumption).
-- Input size limit and strict validation. Only port 3000 is open, plus SSH from my IP. MongoDB has no public port. Secrets live in `.env`, not git.
+- bcrypt hashes only; JWT HS256 with a 32+ character secret, 8h expiry; token in browser memory only; roles checked server-side; employee identity comes from the token, never the request.
+- Secrets live in `.env` (git-ignored), reach the app only as listed variables, and did not appear in a scan of container logs. MongoDB credentials are URL-encoded by the app.
+- MongoDB sits on an internal Docker network with no published port. Size limits and strict validation on input; findings render as text.
+- **Limits:** HTTP only, public demo passwords, no login rate limiting, in-memory logout list, the app uses the MongoDB root user.
 
-## 7. Testing approach
-Jest and Supertest: parsing, each rule (nested, three-way, touching, exactly 11h), the seed files giving exactly six findings, API and key checks, and database tests against a real MongoDB. GitHub Actions comes later. The dashboard and deployment are checked by hand. There are no UI tests.
+## 7. Testing
+285 automated tests (Jest, Supertest, an in-memory MongoDB): every rule including nested, three-way, touching and exactly 11h; the seed gives exactly the six findings; auth, roles, employee isolation, fail closed; persistence, pagination, delete, partial failures; Compose security properties. Verified by hand against the real Compose stack: both logins, history, restarts, outage, backup and restore. UI behaviour is covered by rendering tests only; the browser checklist in `docs/DEMO.md` is **not yet run**.
 
 ## 8. Operability
-`GET /health` (with database state), JSON logs without names, `restart: unless-stopped`, clear error messages. If the database is down, checks still return findings with `saved: false`. Docker restarts the container after a crash (seen live with `kill -9`) but not after a manual `docker kill`. The demo uses `kill -9` or `docker compose restart`.
+JSON logs without names, secrets or request bodies; health checks on both containers; `restart: unless-stopped` (not after a manual `docker kill`); clear error messages. Manual `mongodump` backup and restore, tested locally. Changing MongoDB credentials in `.env` does not change an existing database user.
 
-## 9. Scaling: 10x volume
-The check should stay fast (O(n log n + k), unmeasured). Limits: one Node process, request size, one database node. Next: check one store at a time, a worker, a managed database.
+## 9. 10x volume
+Checks stay fast (unmeasured). Limits: one Node process, the 1 MB request cap, one MongoDB node. Next: per-store checks, a worker, a managed database with replication.
 
-## 10. Limits and next steps
-**Build order, 150 minutes, no spare buffer:** (1) rules and `POST /api/check`, tested locally without a database, 63; (2) dashboard with sample-data button, 33; (3) deploy with the `app` service only and check the live URL, 18; (4) MongoDB: models, saving, history, `mongo` service, database tests, redeploy, 36. If time runs out before 4, the app still works with `saved: false` and History marked unavailable.
-**Limits:** touching shifts raise a short-rest finding (to confirm). One shared key, no backups, unencrypted HTTP.
+## 10. Remaining limits
+EC2 redeploy pending; no CI; touching shifts raise a short-rest finding (to confirm); no real TTL-expiry observation; Linux seed permissions untested.

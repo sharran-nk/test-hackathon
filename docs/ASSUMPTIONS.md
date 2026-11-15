@@ -20,8 +20,8 @@ Every item below is **a guess, not a requirement**. None has been confirmed by t
 | ID | Assumption | Why needed | Risk if wrong | Clarifying question I would ask the customer |
 |---|---|---|---|---|
 | U1 | The user is a store manager or rostering staff member, working in a browser, before publishing. | Decides the interface and the language of findings. | The real user is an ops analyst or an area manager checking many stores, which needs different views. | "Who builds the roster and who would run the check? One store at a time, or all stores?" |
-| U2 | Everyone who can open the app may check any store. There are no per-store permissions. | Keeps the demo simple. | A manager sees staff from other stores they shouldn't. | "Should a manager see only their own store's staff?" |
-| U3 | Staff don't use the tool. Only the roster owner sees findings. | Limits who sees personal data. | If staff need a view, there's a privacy and access design to do. | "Do staff or area managers need to see the results?" |
+| U2 | There are two roles. The manager (one shared account) can check, see and delete the saved results of **every** store. An employee can see only their own shifts, leave and findings. There are no per-store permissions. | Keeps the demo simple. | A manager sees staff from other stores they should not, or one shared manager login is not acceptable. | "Should a manager see only their own store's staff? Does each manager need their own login?" |
+| U3 | Staff use the tool only through the employee portal, to see their own shifts, leave and the problems found with their own shifts. Findings about other people are never shown to them. | Limits who sees personal data, while giving staff a reason to log in. | Staff should not see findings about themselves, or need more (swaps, requests). | "Should staff see problems with their own shifts? Anything else?" |
 | U4 | A person's home store is only informational. They may legitimately work at either store. | Needed so cross-store shifts aren't flagged just for being at the other store. | We flag normal cover shifts, or miss genuine errors. | "Can staff work at stores other than their home store, and how is that approved?" |
 
 ## Data (volume, quality, duplicates)
@@ -44,7 +44,7 @@ Every item below is **a guess, not a requirement**. None has been confirmed by t
 | ID | Assumption | Why needed | Risk if wrong | Clarifying question I would ask the customer |
 |---|---|---|---|---|
 | S1 ★ | Names are personal data, so they are dropped when the files are read and never stored or logged. MongoDB keeps only IDs, stores, dates, times and findings, for 30 days (`RETENTION_DAYS`, my assumption), then deletes them. Logs use IDs only. | Sets privacy, storage and logging rules. The seed has fictional names only. | Names or IDs end up where they shouldn't, which breaches policy or data protection law. If the customer needs longer history or names shown, the stored data and the UI change. | "How long may we keep rosters and results? Which privacy rules apply (for example GDPR)? Who may see staff IDs, and do names need to be shown?" |
-| S2 | A simple access gate (or none for the demo) is enough. There's no single sign-on. | Needed to decide on authentication. | Real use needs login tied to the company's identity system. | "How do your staff sign in to internal tools?" |
+| S2 | A simple login is enough: username and password, JWT, two roles, no single sign-on. The demo passwords are public (see A1). | Needed to decide on authentication. | Real use needs login tied to the company's identity system, personal manager accounts, password reset and rate limiting. | "How do your staff sign in to internal tools?" |
 | S3 | Uploaded files are untrusted: size-limited, type-checked and parsed safely. | Input validation is a project rule. | A large or crafted file crashes or slows the app. | "Are there any limits on file size or format we should know?" |
 | S4 | Roster data is internal, not highly sensitive (no pay, no health data). | Sets the security level. | Leave reasons or pay rates are attached later, which changes the level required. | "Does the leave data include reasons (such as sickness) or pay?" |
 | S5 | Hosting in one AWS region is acceptable. | Needed for hosting. | The customer requires data in a particular country. | "Is there a rule about where staff data may be stored?" |
@@ -64,11 +64,25 @@ Every item below is **a guess, not a requirement**. None has been confirmed by t
 |---|---|---|---|---|
 | O1 | Used mostly in a weekly window, by a small number of people at once. No high availability needed. | Sets hosting size and uptime promises. | The tool becomes essential just before publishing, so downtime at the wrong moment is costly. | "When is the check needed, and what happens if it is down for an hour?" |
 | O2 | A single EC2 instance with Docker Compose is enough. | Hosting default. | Scale or uptime needs more. | "What are your uptime and recovery expectations?" |
-| O3 | Structured logs and `GET /health` are enough monitoring. No alerts. | Operability criterion. | Failures go unnoticed. | "Who looks after the tool when it breaks, and how do they find out?" |
+| O3 | Structured logs and `GET /health` are enough monitoring. No alerts. `/health` reports only that the Node process is alive; it does **not** check MongoDB (a login attempt does). | Operability criterion. | Failures go unnoticed, and a green health check can hide a dead database. | "Who looks after the tool when it breaks, and how do they find out?" |
 | O4 | The rules (11h rest and similar) can be changed in configuration, not by customers editing them. | Keeps rules adjustable. | Different stores or countries need different rules at run time. | "Do rules differ by store, role or country, and who changes them?" |
 | O5 | Support is handled by me. There's no support process or cost model. | Scope. | The customer asks who maintains it. | "Who owns and maintains the tool after the pilot?" |
 
-## The 5 most important assumptions
+## Authentication, roles and operations (added with login, MongoDB and Docker)
+
+Same status as everything above: **Unconfirmed**. None of these is a customer requirement.
+
+| ID | Assumption | Risk if wrong |
+|---|---|---|
+| A1 | One shared manager account (`manager`) is enough. Its demo password `manager123` comes from `MANAGER_PASSWORD` and is public in the docs, so it is acceptable only with fictional data. There is no password change or reset and no login rate limiting. | Real use needs personal manager accounts, strong passwords, reset and lockout. Anyone can guess passwords repeatedly today. |
+| A2 | An employee's username is their employee ID. Their random password is handed over outside the app (a line from `credentials.txt`). Accounts are created once, from `employees.csv`, by the seed script; a new starter is added by running it again. | The real identity source is different, or staff cannot receive passwords this way. |
+| A3 | Employees see the **latest saved** check, whoever saved it. There is no draft or publish step, so an employee can see a roster that has problems and was never published. | Staff see rosters before the manager has fixed or approved them. A publish flag would be needed. |
+| A4 | The 30-day retention applies to rosters, results and findings, not to user accounts. | Accounts of leavers stay until someone deletes them (no tool for that yet). |
+| A5 | A login lasts 8 hours (`JWT_EXPIRES_IN`). Logging out ends that token, but the list of ended tokens is in memory, so a server restart forgets it. | A stolen token stays valid after logout if the server restarted since. |
+| A6 | **Fail closed.** If MongoDB is unreachable, nobody can log in and no protected request is answered (503), including checking. A short database outage therefore stops the whole tool. Only a failed save, after the account was verified, still returns findings (`saved: false`). | The customer wants the checker to keep working without the database. Stateless tokens would allow that but cannot be revoked or deactivated during an outage. |
+| A7 | The app connects to MongoDB as the root user, on a private Docker network with no published port. | If the app is compromised, the attacker has full database rights. A `readWrite` user on `roster` would limit this. |
+| A8 | One MongoDB container on one disk, manual `mongodump` backups, no replication. Losing the disk loses the data (it is disposable: 30-day retention, re-uploadable). | The customer expects history to be durable. |
+| A9 | Plain HTTP is acceptable for a short demo with fictional data. Passwords, tokens and rosters cross the network unencrypted. | Anyone on the network can read or replay them. |
 
 1. **B1** What "double-booked" means.
 2. **B2** The tool warns and doesn't block.
@@ -87,7 +101,7 @@ These are mine to decide, not the customer's. Each one affects the code.
 5. **Input method.** File upload, JSON body or both. And whether the three CSVs come together or separately.
 6. **Storage.** Settled by the mandatory stack: MongoDB with Mongoose, as a container on EC2 (see `docs/DECISIONS.md`). Still to confirm with the customer: the 30-day retention and IDs-only storage (S1).
 7. **What the user sees.** A web page, an API or both. Decides whether React is needed in the time box.
-8. **Access gate.** None, a shared key or a login. The CLAUDE.md stack includes JWT and bcrypt, but I should add only what the demo needs.
+8. **Access gate.** Decided: username and password with JWT and two roles (Decision 13). Still to confirm with the customer: single sign-on, personal manager accounts (S2, A1).
 9. **How rules are configured.** The minimum rest (11h) and the severity per rule, in environment variables or a small config file.
 10. **How to cover the rules in tests.** One test per planted problem, plus the edge cases below, using the seed data as the answer key.
 

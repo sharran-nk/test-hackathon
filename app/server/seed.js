@@ -1,5 +1,5 @@
 // Creates the demo accounts once. Run: node server/seed.js [path/to/employees.csv]
-//  - manager: password from MANAGER_PASSWORD (default manager123), only created if missing.
+//  - manager: password from MANAGER_PASSWORD (required), only created if missing.
 //  - employees: one account per employee_id in employees.csv, with a random password.
 //    New passwords are written to credentials.txt (git-ignored, mode 600), never logged.
 //    Existing accounts are never touched, so passwords are not regenerated on restart.

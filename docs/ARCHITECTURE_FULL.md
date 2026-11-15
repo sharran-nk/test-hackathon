@@ -1,5 +1,7 @@
 # Solution Design: Roster Checker
 
+> **Historical document (written before the build).** Authentication here is the shared `ACCESS_KEY` and the history routes are `/api/results`. Both were replaced: see `README.md`, `SOLUTION_DESIGN.md` and Decisions 13 to 15 for what exists now. Not updated line by line.
+
 **Case:** a grocery chain's Head of Store Operations: *"We keep finding out too late that someone was double-booked. We want something that checks a roster before it goes out. What would you build?"*
 **Status:** design only. Nothing is built yet. Names such as file paths are proposed. Every assumption is **unconfirmed** and is listed in `docs/ASSUMPTIONS.md`.
 

@@ -1,86 +1,114 @@
 # Demo and manual checks
 
-Things that need a real browser or the real host, so they have no automated test (reasons in `docs/REQUIREMENTS.md` section 4). Tick a box only after doing it and seeing the result. **Nothing below has been ticked yet: no human has run it in a browser.**
+Things that need a real browser or the real host, so they have no automated test (reasons in `docs/REQUIREMENTS.md` section 4). Tick a box only after doing it and seeing the result. **Nothing below has been ticked: no human has run this list in a browser.** What was verified without a browser is listed in the README and in `docs/DEPLOY.md` ("Verified locally").
 
-## Run it locally
+## Start the demo
 
+```bash
+cp .env.example .env     # set JWT_SECRET (32+ chars), MANAGER_PASSWORD (manager123 for the demo), MONGO_ROOT_PASSWORD
+docker compose up -d --build && docker compose ps       # both healthy
+# create the employee accounts (Git Bash on Windows: prefix with MSYS_NO_PATHCONV=1)
+mkdir -p secrets
+docker compose run --rm --no-deps -e CREDENTIALS_FILE=/out/credentials.txt \
+  -v "$PWD/case/seed:/seed:ro" -v "$PWD/secrets:/out" app node server/seed.js /seed/employees.csv
+grep '^E003,' secrets/credentials.txt          # E003's password for the employee part of the demo
 ```
-cd app && npm install && cd client && npm install && npm run build && cd ..
-ACCESS_KEY=<a temporary value> node server/server.js     # then open http://localhost:3000
-```
 
-For development with hot reload: run the server as above on port 3000, then `npm run dev` in `app/client` and open the address Vite prints. Vite forwards `/api` to port 3000.
+Open `http://localhost:3000` (or `APP_PORT`). For development with hot reload, see the README (Vite forwards `/api` to port 3000).
 
-## A. Portal checklist (FR-14, FR-21, NFR-S5, NFR-S6)
+## Credentials
 
-Status: **not yet run by a human.** The screens were rendered to HTML in Node and the API calls were replayed, which is not a browser check. Try it on a wide window and at about 360 px.
+| Role | Username | Password |
+|---|---|---|
+| Manager | `manager` | `MANAGER_PASSWORD` (demo value `manager123`) |
+| Employee | `E001` to `E025` | random, in `secrets/credentials.txt` |
+
+## Five-minute walkthrough
+
+1. **Landing.** Two cards, Employee Login and Manager Login, and the amber footer "Demo over unencrypted HTTP. Use fictional data only." on every screen.
+2. **Manager login.** Manager Login, username `manager`, the password. The manager portal opens on the Dashboard.
+3. **Upload and validate.** Upload Roster, **Use sample data**, **Run validation**. The result shows "Not clear to publish" and exactly six findings:
+
+   | Rule | Employee | Shifts |
+   |---|---|---|
+   | SHORT_REST | E003 | SH013 + SH021 |
+   | DUPLICATE_ROW | E005 | SH091 |
+   | OVERLAP | E007 | SH024 + SH025 |
+   | DATA_BAD_ROW | E010 | SH086 |
+   | OVERLAP | E012 | SH033 + SH041 |
+   | ON_LEAVE | E015 | SH098 |
+
+   The tabs show All 6, Overlap 2, Rest 1, Leave 1, Data 2 (the duplicate and the bad row are data findings).
+4. **History.** Roster History lists the check. View opens it again with the same six findings. (Delete asks for confirmation.)
+5. **Logout**, then **Employee Login** as `E003`. "My schedule" shows E003's own shifts and the one finding (Short rest). Nobody else's data appears. Log out.
+6. **Wrong role.** On Employee Login try `manager` and its password: it is refused ("That is a manager account. Use Manager Login instead.").
+7. **Outage (optional, shows fail closed).** `docker compose stop mongo`. Reload and try to log in: "Sign-in is unavailable ... database". A manager already signed in who runs a check gets the same kind of message, **not** findings. `docker compose start mongo` and it works again without restarting the app.
+
+## A. Portal checklist
+
+Try it on a wide window and at about 360 px.
 
 **Landing and sign-in**
-- [ ] A small logo and "FreshMart" sit above two separate cards, "Employee Login" and "Manager Login". A thin amber footer line says "Demo over unencrypted HTTP. Use fictional data only." on every screen.
-- [ ] "Employee Login" opens a plain notice that the portal opens once a manager has published a roster. There is no sign-in. "Back" returns.
-- [ ] "Manager Login" opens a small password form with the cursor in the field.
-- [ ] Empty password: "Enter the password to sign in."
-- [ ] Wrong password: "That password was not accepted. Try again." and the field is empty again.
-- [ ] Right password: the manager portal opens on Dashboard.
-- [ ] Stop the server and sign in: "Could not reach the server..."
+- [ ] A small logo and "FreshMart" sit above two cards, "Employee Login" and "Manager Login". The amber footer is on every screen below.
+- [ ] Manager Login opens "Manager sign-in" with a Username field (pre-filled `manager`) and a masked Password field. Employee Login opens "Employee sign-in" with an Employee ID field (empty).
+- [ ] Empty fields: "Enter your username and password."
+- [ ] Wrong password: "Invalid username or password." and the password box is empty again. An unknown username gives the same message.
+- [ ] Correct manager login opens the manager portal. Correct employee login opens the employee portal.
+- [ ] A manager account on Employee Login (and the reverse) is refused with a message naming the other login.
+- [ ] Stop the server and sign in: "Could not reach the server...". Stop only `mongo`: "Sign-in is unavailable ... database ...".
 
-**Portal shell**
-- [ ] Header shows the logo, "FreshMart" and "Manager portal". The sidebar lists Dashboard, Upload Roster, Validation Results, Roster History and Logout. The current page is marked by a green bar, bold text and a tint.
-- [ ] Under about 760 px the sidebar becomes a single row of menu buttons that scrolls sideways.
-- [ ] Roster History says "Available after the database is added".
+**Manager portal shell**
+- [ ] Header shows the logo, "FreshMart" and "Manager portal". The sidebar lists Dashboard, Upload Roster, Validation Results, Roster History and Logout, with the current page marked. Under about 760 px it becomes a sideways-scrolling row.
 
 **Dashboard**
-- [ ] Before any upload: four tiles with dashes ("Total employees", "Total shifts", "Validation status: Not run", "Conflicts detected") and an empty state with a "Go to Upload Roster" button.
-- [ ] After choosing files (before validating): Total employees 25 and Total shifts 156 fill in.
-- [ ] After validating the sample: "Not clear" with an icon, Conflicts detected 4 "plus 2 data issues", and a line with a "View validation results" button.
+- [ ] Before any upload: four tiles with dashes and a "Go to Upload Roster" button. After choosing the sample files: Total employees 25 and Total shifts 156. After validating the sample: "Not clear", Conflicts detected 4 "plus 2 data issues".
 
 **Upload Roster**
-- [ ] Three rows with "Choose file" buttons and "No file chosen". "Still needed: the employees file and the shifts file."
-- [ ] "Use sample data": every row shows a tick with a row count (25, 156 and 5 rows) and "Ready to validate."
-- [ ] Choose a real CSV: its row count and file name show, and the button says "Replace file".
-- [ ] An empty file for employees or shifts: a red message next to that row. A file over 1 MB: "... larger than 1 MB ...".
-- [ ] A shifts CSV with the wrong header, then "Run validation": "The server could not use these files: shifts.csv is missing column(s) ...".
-- [ ] Stop the server and run validation: "Could not reach the server..." with a "Try again" button that keeps the files.
-- [ ] While validating the button reads "Validating…" and cannot be pressed twice.
+- [ ] Three rows with "Choose file". "Use sample data" fills them (25, 156 and 5 rows) and says "Ready to validate."
+- [ ] An empty employees or shifts file, or a file over 1 MB, shows a red message next to that row. A shifts CSV with the wrong header then "Run validation": "The server could not use these files: shifts.csv is missing column(s) ...".
+- [ ] Stop the server and run validation: "Could not reach the server..." with "Try again", keeping the files. While validating the button reads "Validating…" and cannot be pressed twice.
 
-**Validation Results (the 5-second test)**
-- [ ] With the sample, the result opens by itself. Without scrolling on a normal laptop screen you see: a slim red bar "Not clear to publish: 4 problems and 2 data issues", count pills (Overlap 2, Rest 1, Leave 1, Data 2), the tabs and all 6 table rows.
-- [ ] Tabs All 6, Overlap 2, Rest 1, Leave 1, Data 2 filter the table.
-- [ ] Table columns are Rule, Employee, Shift IDs, Date, Description. Every row has an icon and a word for severity ("Error" or "Warning"). The two data rows use the file icon.
-- [ ] Each description is one short line, for example "Only 8h rest: ends 22:00, next starts 06:00 (needs 11h)".
-- [ ] The amber line "Data quality: 1 row skipped (1 unreadable), 1 duplicate row counted once" expands to the file and line.
-- [ ] Match each of the 6 to `case/seed/README.md`.
-- [ ] Load your own small CSVs with no problems: a slim green bar "Clear to publish".
-- [ ] (Optional) Start the server with `MAX_FINDINGS=2` and validate the sample: an amber note says the list was cut off.
+**Validation Results**
+- [ ] With the sample, the result opens by itself: red bar "Not clear to publish: 4 problems and 2 data issues", count pills (Overlap 2, Rest 1, Leave 1, Data 2), tabs and all 6 rows without scrolling on a normal laptop screen. Match each of the 6 to `case/seed/README.md`.
+- [ ] Each row has an icon and the word "Error" or "Warning". The amber "Data quality" line expands to file and line.
+- [ ] Your own small CSVs with no problems: a green "Clear to publish".
+- [ ] If the check could not be saved (for example the database dropped during the save), an amber note says the result was not saved to history and the findings are still shown.
 
-**Logout and key handling (NFR-S6)**
-- [ ] "Logout" returns to the landing page. Signing in again shows an empty Dashboard (files and results are gone) and the password box is empty.
-- [ ] After a successful check, reload the page: you are on the landing page, signed out.
-- [ ] In the browser dev tools, Application tab: Local storage, Session storage and Cookies are empty for this site.
-- [ ] The address bar never shows the key.
-- [ ] Network tab: the only requests go to this same address (`/`, the JS and CSS files, `/api/check`). No outside hosts.
+**Roster History (manager)**
+- [ ] Empty history: "No saved checks yet". After a check: a row with date (UTC), Clear or Not clear, number of findings and shifts checked. 10 per page; Previous and Next work and are disabled at the ends ("Page 1 of 2").
+- [ ] View shows "Checked <date> · N employees, N shifts, N leave rows" and the findings. Delete asks "Delete this saved check and its roster?"; Cancel keeps it; confirming returns to the list without it.
+- [ ] With `mongo` stopped, the list shows an error with "Try again".
 
-**Text, not HTML (NFR-S5)**
-- [ ] A shifts file with a row such as `<b>x</b>,E001,S01,2026-11-16,09:00,17:00` shows the row as plain text in the table and the data line, with no bold text.
+**Employee portal**
+- [ ] Header "Employee portal · E003" and a Logout button, no manager menu. "Loading your schedule…" appears briefly.
+- [ ] "My shifts" (date, start, end, store, shift ID), "My leave" and "Problems with my shifts" show only this employee's rows. For E003 the problem is "Short rest: E003 has only 8h 0m rest between SH013 and SH021...". For E001 "No problems were found".
+- [ ] With no roster saved: "No roster yet". An employee not in the roster: empty tables with plain messages.
+- [ ] With `mongo` stopped: an error with "Try again".
+
+**Logout and token handling**
+- [ ] Logout returns to the landing page; signing in again shows an empty Dashboard (files and results are gone).
+- [ ] After a successful sign-in, reload the page: you are on the landing page, signed out.
+- [ ] Browser dev tools, Application tab: Local storage, Session storage and Cookies are empty for this site. The address bar never shows a token or password.
+- [ ] Network tab: the only requests go to this same address (`/`, the JS and CSS, `/api/...`). No outside hosts. The token is only in the `Authorization` header.
+- [ ] In a second tab, log out; in the first tab click History: you are returned to sign-in with "Your session has ended. Sign in again."
+
+**Text, not HTML**
+- [ ] A shifts file with a row such as `<b>x</b>,E001,S01,2026-11-16,09:00,17:00` shows the row as plain text, with no bold text.
 
 **Look and feel**
-- [ ] Body text is 14px and table text 13px, readable on a laptop. Tab through every screen: each control shows a visible focus ring, and the file buttons work with Enter or Space.
-- [ ] At about 360 px nothing scrolls the whole page sideways (the table scrolls inside its own box).
-- [ ] With "reduce motion" turned on in the operating system, nothing changes except colour.
+- [ ] Body text 14px, table text 13px. Tab through every screen: every control shows a focus ring, and file buttons work with Enter or Space.
+- [ ] At about 360 px nothing scrolls the page sideways (tables scroll inside their own box). With "reduce motion" on, nothing changes except colour.
+
+## B. Deployment checklist (Milestone 8, not done)
+- [ ] `http://<EC2 public IP>:3000/health` returns `{"status":"ok"}`, and a login works from another machine (this proves the database too, `/health` does not).
+- [ ] Only port 3000 answers from outside. 27017 never does. 22 only from your IP.
+- [ ] Crash recovery with `kill -9` on the app process (not `docker kill`, which is a manual stop).
+- [ ] Data survives `docker compose down` then `up -d` (never `-v`).
 
 ## Known limitations of the portal
 
-- **Manager sign-in is a temporary workaround.** The API has no sign-in endpoint, so the page checks the password by sending an empty `POST /api/check` and reading the status: 401 means a wrong key, 400 means a right key (the empty body is invalid). It works only because the server checks the key before it looks at the body, and `app/tests/api.test.js` ("sign-in key check does not depend on the body") fails if that order ever changes. It will be replaced by a proper manager sign-in endpoint. Until then the password is the shared `ACCESS_KEY`, there are no personal accounts, and it travels over unencrypted HTTP.
-- **Employee login is not built.** The Employee card only leads to a notice.
-- **Descriptions use the files the page holds.** The shift date, times and stores in each table row come from the CSV text loaded in this browser tab. A result opened later from History (milestone 4) would show the server's own sentence and a dash for the date until the API sends those fields.
-- **No UI tests.** The screens are checked by this list and by source scans, not by browser tests.
-
-## B. Deployment checklist (milestone 3, not done yet)
-- [ ] `http://<EC2 public IP>:3000/health` returns `{"status":"ok"}`.
-- [ ] The dashboard works from another machine with the sample data.
-- [ ] Only port 3000 answers from outside. Ports 22 (from other IPs) and 27017 do not.
-- [ ] Crash recovery: on the instance run `sudo kill -9 $(sudo docker inspect -f '{{.State.Pid}}' roster-checker-app-1)`, wait 20 seconds, and `docker compose ps` shows it healthy again (`restarts=1`). **Do not use `docker kill` in the demo:** Docker restarts a container after a crash but not after a manual `docker kill`, which it treats as a deliberate stop (seen on the instance: exit 137, stayed down). If that happens, run `docker compose up -d`. For a restart on demand, `docker compose restart` works, but it is a manual restart and does not show the automatic recovery.
-
-## C. History and database checklist (milestone 4, not done yet)
-- [ ] A check appears in the History list and can be reopened after a reload.
-- [ ] Stop the database container: a check still returns findings with `saved: false`, and History says it is unavailable.
+- **No browser test.** `app/tests/ui.test.js` renders the real components to HTML and tests the decision logic, but it cannot click, type or follow a login. This list covers that gap and has not been run.
+- **Descriptions of old results.** A result opened from History has no CSV files in the browser, so the table shows the server's sentence and a dash for the date.
+- **Demo passwords are public** and there is one shared manager account, no password change, no rate limiting.
+- **Employees see the latest saved check** whoever saved it, including checks with problems (no publish step).
+- **Everything is plain HTTP.** Use fictional data only.

@@ -1,5 +1,7 @@
 # Build Plan (150 minutes)
 
+> **Historical document (written before the build).** Authentication here is the shared `ACCESS_KEY` and the history routes are `/api/results`. Both were replaced: see `README.md`, `SOLUTION_DESIGN.md` and Decisions 13 to 15 for what exists now. Not updated line by line.
+
 Status: plan only. No code is written. Sources: `SOLUTION_DESIGN.md`, `docs/REQUIREMENTS.md`, `docs/DECISIONS.md` (Decisions 1-12), `docs/ARCHITECTURE_FULL.md`.
 
 The design's 150 minutes had **zero buffer**. This plan keeps 150 but reserves a 15-minute buffer and adds Milestone 5 (README, GitHub Actions). To pay for that, some estimates are tighter than the design's. That is a real risk: M4 is where the buffer will most likely be spent.

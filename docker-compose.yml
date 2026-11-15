@@ -12,6 +12,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
     volumes:
       - mongo_data:/data/db        # named volume: data survives container restarts and rebuilds
+      - mongo_config:/data/configdb  # named so the image does not create a new anonymous volume on every recreate
     networks:
       - private                    # internal network only. There is NO "ports:" here, so 27017 is never published.
     healthcheck:
@@ -61,3 +62,4 @@ networks:
 
 volumes:
   mongo_data:
+  mongo_config:
