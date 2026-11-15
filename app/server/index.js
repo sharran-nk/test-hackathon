@@ -5,6 +5,8 @@ const express = require('express');
 const { createLogger } = require('./logger');
 const { requireKey } = require('./auth');
 const { createCheckRouter } = require('./routes/check');
+const { createHistoryRouter } = require('./routes/history');
+const defaultStore = require('./store');
 const { InputError } = require('./parse/validate');
 
 const fail = (res, status, code, message, extra = {}) =>
@@ -13,7 +15,7 @@ const fail = (res, status, code, message, extra = {}) =>
 // Builds the Express app. Kept separate from listen() so Supertest can use it.
 // clientDir is the built React app (client/dist). If it does not exist (for example in
 // the API tests), the API still works and "/" is simply a 404.
-function createApp(config, { logger = createLogger(), clientDir = path.join(__dirname, '../client/dist') } = {}) {
+function createApp(config, { logger = createLogger(), clientDir = path.join(__dirname, '../client/dist'), store = defaultStore } = {}) {
   const app = express();
   app.disable('x-powered-by');
 
@@ -50,7 +52,8 @@ function createApp(config, { logger = createLogger(), clientDir = path.join(__di
   // An anonymous caller learns nothing about validation.
   app.use('/api', requireKey(config.accessKey));
   app.use('/api', express.json({ limit: `${config.maxBodyKb}kb` }));
-  app.use('/api', createCheckRouter(config));
+  app.use('/api', createCheckRouter(config, { store, logger }));
+  app.use('/api/history', createHistoryRouter({ store, logger }));
 
   // The React app: static files, and index.html for any other GET that is not the API.
   if (clientDir && fs.existsSync(path.join(clientDir, 'index.html'))) {

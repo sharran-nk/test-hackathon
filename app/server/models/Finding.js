@@ -12,8 +12,8 @@ const findingSchema = new mongoose.Schema({
   employeeId: { type: String, default: null },
   shiftIds: [String],
   message: { type: String, required: true },
-  source: { type: String, default: null },
-  line: { type: Number, default: null },
+  source: String,
+  line: Number,
   createdAt: { type: Date, default: Date.now },
 });
 findingSchema.index({ createdAt: 1 }, { expireAfterSeconds: retentionSeconds });

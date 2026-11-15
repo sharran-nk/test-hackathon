@@ -1,14 +1,15 @@
 const express = require('express');
 const rules = require('../rules/index');
-const { InputError } = require('../parse/validate');
+const { InputError, parseRoster } = require('../parse/validate');
 
 // POST /api/check  { employees: "<csv>", shifts: "<csv>", leave: "<csv, optional>" }
-// Returns the findings and a summary. Saving to MongoDB is added in milestone 4, so
-// until then resultId is null and saved is false.
-function createCheckRouter(config) {
+// Returns the findings and a summary. If MongoDB is up the check is also saved and the response
+// carries saved:true and the resultId; otherwise (or if saving fails) saved:false, resultId:null
+// and the findings are returned all the same.
+function createCheckRouter(config, { store, logger }) {
   const router = express.Router();
 
-  router.post('/check', (req, res, next) => {
+  router.post('/check', async (req, res, next) => {
     try {
       const body = req.body;
       if (body === null || typeof body !== 'object' || Array.isArray(body)) {
@@ -27,9 +28,19 @@ function createCheckRouter(config) {
         { employees: body.employees, shifts: body.shifts, leave: body.leave || '' },
         { maxFindings: config.maxFindings, minRestHours: config.minRestHours },
       );
+      let resultId = null;
+      if (store.isUp()) {
+        try {
+          // The rows kept for saving come from the same parser the rules use (names are dropped on save).
+          const parsed = parseRoster({ employees: body.employees, shifts: body.shifts, leave: body.leave || '' });
+          resultId = await store.saveCheck({ parsed, summary, findings });
+        } catch (err) {
+          logger.error('save_failed', { requestId: req.id, errorName: err.name }); // name only
+        }
+      }
       res.json({
-        resultId: null,
-        saved: false,
+        resultId,
+        saved: resultId !== null,
         createdAt: new Date().toISOString(),
         summary,
         findings,

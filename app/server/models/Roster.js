@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const retentionSeconds = (Number(process.env.RETENTION_DAYS) || 30) * 86400;
 
 const rosterSchema = new mongoose.Schema({
-  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // set from the login in Milestone 4
   employees: [{ _id: false, employeeId: String, homeStore: String }],
   shifts: [{ _id: false, shiftId: String, employeeId: String, storeId: String, date: String, start: String, end: String }],
   leave: [{ _id: false, leaveId: String, employeeId: String, startDate: String, endDate: String, status: String }],

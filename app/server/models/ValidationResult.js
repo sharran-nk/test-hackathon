@@ -5,7 +5,7 @@ const retentionSeconds = (Number(process.env.RETENTION_DAYS) || 30) * 86400;
 // One check run: the summary counts. The findings are separate documents (Finding).
 const resultSchema = new mongoose.Schema({
   rosterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Roster', required: true },
-  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // set from the login in Milestone 4
   summary: { type: mongoose.Schema.Types.Mixed, required: true },
   createdAt: { type: Date, default: Date.now },
 });
