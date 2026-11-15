@@ -9,7 +9,7 @@ Sources: `case/brief.md`, `docs/PROBLEM.md`, `docs/ASSUMPTIONS.md` (IDs such as 
 
 ## Current status (updated at Milestone 7)
 
-Built and verified locally with Docker Compose: the six rules, JWT login for two roles, saved history in MongoDB, the employee schedule, the React portal. **Not deployed to EC2 in this version** (the instance runs the earlier shared-key, no-database build). `verified` below means the automated tests were run and passed (285 tests, 12 suites); where something was also run against the real Compose stack, that is said. Browser behaviour is **not** verified by a human yet (`docs/DEMO.md`).
+Built and verified locally with Docker Compose: the six rules, JWT login for two roles, saved history in MongoDB, the employee schedule, the React portal. **Not deployed to EC2 in this version** (the instance runs the earlier shared-key, no-database build). `verified` below means the automated tests were run and passed (286 tests, 12 suites); where something was also run against the real Compose stack, that is said. Browser behaviour is **not** verified by a human yet (`docs/DEMO.md`).
 
 Priorities still read: Must, Should, Could. Requirements FR-28 to FR-34 and the history routes (`/api/history`) were added after the first plan, and **FR-26 (delete) was built**. Not built: FR-15, FR-18, FR-19, FR-20, FR-22, NFR-R11, NFR-F1 (no timing test).
 
@@ -115,7 +115,7 @@ Priorities still read: Must, Should, Could. Requirements FR-28 to FR-34 and the 
 
 ## 3. Traceability
 
-Paths are real. Status words: `verified` = automated test run and passed (285 tests); "stack" = also run against the real Docker Compose stack on 2026-11-16 (local only, not EC2); "EC2 (earlier build)" = checked on the instance on 2026-11-15, before login and MongoDB existed. Items without an automated test are marked "manual" and explained in section 4.
+Paths are real. Status words: `verified` = automated test run and passed (286 tests); "stack" = also run against the real Docker Compose stack on 2026-11-16 (local only, not EC2); "EC2 (earlier build)" = checked on the instance on 2026-11-15, before login and MongoDB existed. Items without an automated test are marked "manual" and explained in section 4.
 
 | Req ID | Requirement | Priority | Feature or endpoint | File | Test | Status |
 |---|---|---|---|---|---|---|
@@ -176,7 +176,7 @@ Paths are real. Status words: `verified` = automated test run and passed (285 te
 | NFR-R5 | AI failure falls back to template | Could | Explain step | `app/server/explain.js` | `app/tests/explain.test.js` | planned |
 | NFR-R6 | Config from env vars only | Must | Config | `app/server/config.js` | `app/tests/api.test.js` (config describe block) | verified |
 | NFR-R7 | Containers restart | Must | Compose restart policy | `docker-compose.yml` | manual (deploy check) | verified for a crash (live on EC2, 2026-11-15: `kill -9` of the app process, container restarted, `restarts=1`, healthy). Not restarted by `docker kill` (manual stop). Reboot not tested. |
-| NFR-R8 | A test per testable requirement, run before each commit; manual checks listed with reasons | Must | Test suite | `app/tests/` | this table and section 4 | implemented: 285 tests in 12 suites, run before each commit. Manual checks are listed in section 4; UI behaviour in a browser is not covered by a test |
+| NFR-R8 | A test per testable requirement, run before each commit; manual checks listed with reasons | Must | Test suite | `app/tests/` | this table and section 4 | implemented: 286 tests in 12 suites, run before each commit. Manual checks are listed in section 4; UI behaviour in a browser is not covered by a test |
 | NFR-R9 | Database failure: fail closed; saved:false only when the account is verified and the save fails | Must | `requireAuth`, store, history routes | `app/server/auth.js`, `app/server/store.js`, `app/server/routes/*.js` | `app/tests/auth.test.js`, `app/tests/history.test.js` (outage, mid-request loss, each failing write step) | verified (stack outage test) |
 | NFR-R10 | Data survives restart and recreation | Must | Named volumes for MongoDB | `docker-compose.yml` | `app/tests/compose.test.js` (volumes declared); run on the real stack: `restart app`, then `down` and `up` (no `-v`) | verified (stack); not on EC2; host reboot not tested |
 | NFR-R12 | Manual backup and restore of the database | Should | `mongodump` and `mongorestore` through `docker compose exec` | `README.md`, `docs/DEPLOY.md` | manual (section 4) | verified once on the stack: 34 documents dumped, database dropped, 34 restored, logins and history worked; not on EC2 |

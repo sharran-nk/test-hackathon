@@ -50,7 +50,7 @@ Express holds auth, routes, the parser and the rules. The rules never touch the 
 - **Limits:** HTTP only, public demo passwords, no login rate limiting, in-memory logout list, the app uses the MongoDB root user.
 
 ## 7. Testing
-285 automated tests (Jest, Supertest, an in-memory MongoDB): every rule including nested, three-way, touching and exactly 11h; the seed gives exactly the six findings; auth, roles, employee isolation, fail closed; persistence, pagination, delete, partial failures; Compose security properties. Verified by hand against the real Compose stack: both logins, history, restarts, outage, backup and restore. UI behaviour is covered by rendering tests only; the browser checklist in `docs/DEMO.md` is **not yet run**.
+286 automated tests (Jest, Supertest, an in-memory MongoDB): every rule including nested, three-way, touching and exactly 11h; the seed gives exactly the six findings; auth, roles, employee isolation, fail closed; persistence, pagination, delete, partial failures; Compose security properties. Verified by hand against the real Compose stack: both logins, history, restarts, outage, backup and restore. UI behaviour is covered by rendering tests only; the browser checklist in `docs/DEMO.md` is **not yet run**.
 
 ## 8. Operability
 JSON logs without names, secrets or request bodies; health checks on both containers; `restart: unless-stopped` (not after a manual `docker kill`); clear error messages. Manual `mongodump` backup and restore, tested locally. Changing MongoDB credentials in `.env` does not change an existing database user.
