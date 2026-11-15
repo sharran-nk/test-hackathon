@@ -124,7 +124,7 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 
 | Req ID | Requirement | Priority | Feature or endpoint | File | Test | Status |
 |---|---|---|---|---|---|---|
-| FR-01 | Accept CSV text in a JSON body, check, save, return | Must | `POST /api/check` | `app/server/routes/check.js` | `app/tests/api.test.js` | planned |
+| FR-01 | Accept CSV text in a JSON body, check, save, return | Must | `POST /api/check` | `app/server/routes/check.js` | `app/tests/api.test.js` | implemented |
 | FR-02 | Hand-written CSV parse and row validation | Must | CSV parser | `app/server/parse/csv.js` | `app/tests/parse.test.js` | verified |
 | FR-03 | Missing or malformed date or time reported | Must | Rule `DATA_BAD_ROW` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | verified |
 | FR-04 | Exact duplicate reported once, excluded from other rules | Must | Rule `DUPLICATE_ROW` | `app/server/rules/duplicate.js` | `app/tests/rules.test.js` | verified |
@@ -133,10 +133,10 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | FR-07 | Touching shifts are not an overlap | Must | Rule `OVERLAP` boundary | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (end = start) | verified |
 | FR-08 | Shift on approved leave | Must | Rule `ON_LEAVE` | `app/server/rules/leave.js` | `app/tests/rules.test.js` | verified |
 | FR-09 | Under 11h rest; exactly 11h allowed | Must | Rule `SHORT_REST` | `app/server/rules/rest.js` | `app/tests/rules.test.js` | verified |
-| FR-10 | Finding fields: rule, severity, employee, shifts, message | Must | Response `findings[]` | `app/server/rules/index.js` | `app/tests/api.test.js` | planned |
-| FR-11 | Summary with counts, skipped rows, truncated, clear, saved | Must | Response `summary` | `app/server/routes/check.js` | `app/tests/api.test.js` | planned |
+| FR-10 | Finding fields: rule, severity, employee, shifts, message | Must | Response `findings[]` | `app/server/rules/index.js` | `app/tests/api.test.js` | verified |
+| FR-11 | Summary with counts, skipped rows, truncated, clear, saved | Must | Response `summary` | `app/server/routes/check.js` | `app/tests/api.test.js` | implemented |
 | FR-12 | Unknown employee or store ID reported | Must | Rule `UNKNOWN_REF` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | verified |
-| FR-13 | Shared key required in `Authorization: Bearer` header | Must | Auth middleware | `app/server/auth.js` | `app/tests/api.test.js` (missing, wrong, right key; wrong scheme; also on history routes) | planned |
+| FR-13 | Shared key required in `Authorization: Bearer` header | Must | Auth middleware | `app/server/auth.js` | `app/tests/api.test.js` (missing, wrong, right key; wrong scheme; also on history routes) | implemented |
 | FR-14 | React dashboard: manual key entry, load files, red/green banner, severity badges, findings table | Must | Single-page UI | `app/client/src/App.jsx` | manual (demo checklist) + `app/tests/security.test.js` (source scan) | planned |
 | FR-15 | Deterministic fix hints | Should | Hint templates | `app/server/rules/hints.js` | `app/tests/hints.test.js` | planned |
 | FR-16 | Seed data gives exactly the 6 planted problems, no false positives | Should | Seed run | `case/seed/` | `app/tests/seed.test.js` | planned |
@@ -151,25 +151,25 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | FR-25 | Open one saved result; 404 if missing | Must | `GET /api/results/:id` | `app/server/routes/results.js` | `app/tests/db.test.js` | planned |
 | FR-26 | Delete a saved result | Should | `DELETE /api/results/:id` | `app/server/routes/results.js` | `app/tests/db.test.js` | planned |
 | FR-27 | Dashboard History list; reopen a saved result | Must | History list | `app/client/src/App.jsx` | manual | planned |
-| NFR-S1 | Key compared in constant time; never logged or returned | Must | Auth middleware, logger | `app/server/auth.js` | `app/tests/security.test.js` (key absent from every response body and captured log output, including 401 and 500) | planned |
+| NFR-S1 | Key compared in constant time; never logged or returned | Must | Auth middleware, logger | `app/server/auth.js` | `app/tests/api.test.js` (key absent from 401, 500 bodies and captured logs) | verified |
 | NFR-S2 | No secrets in code or git; key not in frontend source or build | Must | `.env.example`, `.gitignore`, Vite build | `.env.example`, `app/client/` | `app/tests/security.test.js` (client source has no `ACCESS_KEY` or `VITE_` key use; built files don't contain the test key) + secret grep (in `/final`) | planned |
-| NFR-S3 | Size limit, validation, safe IDs in queries | Must | Body limit, validation | `app/server/index.js`, `app/server/routes/results.js` | `app/tests/api.test.js` (bad ID, object in body) | planned |
+| NFR-S3 | Size limit, validation, safe IDs in queries | Must | Body limit, validation | `app/server/index.js`, `app/server/routes/results.js` | `app/tests/api.test.js` (bad ID, object in body) | implemented |
 | NFR-S4 | No outside calls, short dependency list | Must | Whole app | `app/package.json` | manual review (section 4) | planned |
 | NFR-S5 | Findings shown as text, not HTML | Must | React rendering | `app/client/src/App.jsx` | `app/tests/security.test.js` (no `dangerouslySetInnerHTML`) + manual | planned |
 | NFR-S6 | Key in frontend memory only | Must | React state | `app/client/src/App.jsx` | `app/tests/security.test.js` (no `localStorage`, `sessionStorage` or `document.cookie`) + manual reload check | planned |
 | NFR-S7 | HTTP-only demo notice; only port 3000 published; Mongo port never published | Must | Compose `ports`, dashboard banner, README | `docker-compose.yml`, `app/client/src/App.jsx`, `README.md` | manual deploy check (section 4) | planned |
 | NFR-S8 | DB credentials only server-side, never in responses or logs | Must | Config, logger, error handler | `app/server/config.js`, `app/server/db.js` | `app/tests/security.test.js`, `app/tests/db.test.js` (URI and password absent from responses and logs, including a connection failure) | planned |
-| NFR-P1 | No names in logs | Must | Logger | `app/server/logger.js` | `app/tests/logging.test.js` | planned |
+| NFR-P1 | No names in logs | Must | Logger | `app/server/logger.js` | `app/tests/api.test.js` (request and 500 logs contain no key or names) | verified |
 | NFR-P2 | Minimal stored data, no names | Must | Mongoose schemas | `app/server/models/*.js` | `app/tests/db.test.js` (stored documents contain no name, role or hours) | planned |
 | NFR-P3 | No names sent to AI | Could | Explain payload | `app/server/explain.js` | `app/tests/explain.test.js` | planned |
-| NFR-P4 | IDs only in the dashboard | Must | Response shape | `app/server/rules/index.js` | `app/tests/api.test.js` | planned |
+| NFR-P4 | IDs only in the dashboard | Must | Response shape | `app/server/rules/index.js` | `app/tests/api.test.js` | verified |
 | NFR-P5 | Expiry on every stored record | Must | TTL index on `expiresAt` | `app/server/models/*.js` | `app/tests/db.test.js` (TTL index exists, `expiresAt` set from `RETENTION_DAYS`) | planned |
 | NFR-F1 | ~150 shifts in under 2s, including saving | Must | Whole check | `app/server/routes/check.js` | `app/tests/perf.test.js` | planned |
 | NFR-F2 | Sweep-line overlap, O(n log n + k) | Must | Group, sort, active set | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (nested, 3-way, touching, same-start, cap) + `app/tests/perf.test.js` | implemented |
-| NFR-F3 | Request size limit | Must | Body parser limit | `app/server/index.js` | `app/tests/api.test.js` | planned |
-| NFR-R1 | Bad input returns a clear 4xx, no crash | Must | Error handler | `app/server/index.js` | `app/tests/api.test.js` | planned |
+| NFR-F3 | Request size limit | Must | Body parser limit | `app/server/index.js` | `app/tests/api.test.js` | verified |
+| NFR-R1 | Bad input returns a clear 4xx, no crash | Must | Error handler | `app/server/index.js` | `app/tests/api.test.js` | verified |
 | NFR-R2 | `GET /health` with database state | Must | Health route | `app/server/index.js` | `app/tests/api.test.js` (`db` field added in M4) | implemented |
-| NFR-R3 | Structured logging | Must | Logger | `app/server/logger.js` | `app/tests/api.test.js` (no-names check still to add) | implemented |
+| NFR-R3 | Structured logging | Must | Logger | `app/server/logger.js` | `app/tests/api.test.js` | verified |
 | NFR-R4 | Same input, same output and order | Must | Whole check | `app/server/rules/index.js` | `app/tests/rules.test.js` | verified |
 | NFR-R5 | AI failure falls back to template | Could | Explain step | `app/server/explain.js` | `app/tests/explain.test.js` | planned |
 | NFR-R6 | Config from env vars only | Must | Config | `app/server/config.js` | `app/tests/api.test.js` (config describe block) | verified |
