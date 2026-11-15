@@ -1,0 +1,22 @@
+{
+  "name": "roster-checker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Checks a roster for double-bookings before it is published",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "jest --runInBand"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["<rootDir>/tests/**/*.test.js"]
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  }
+}

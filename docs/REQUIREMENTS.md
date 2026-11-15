@@ -120,62 +120,62 @@ FR-16 and FR-17 are Should, but their checks (seed answer key, row-order test) s
 
 ## 3. Traceability
 
-All paths are **proposed**. Nothing is built yet. Correct the File and Test columns as files appear. Layout assumed: `app/server/` for Express, the rules and the models, `app/client/` for React and Vite, tests in `tests/`. Items without an automated test are marked "manual" and explained in section 4.
+All paths are **proposed**. Nothing is built yet. Correct the File and Test columns as files appear. Layout assumed: `app/server/` for Express, the rules and the models, `app/client/` for React and Vite, tests in `app/tests/`. Items without an automated test are marked "manual" and explained in section 4.
 
 | Req ID | Requirement | Priority | Feature or endpoint | File | Test | Status |
 |---|---|---|---|---|---|---|
-| FR-01 | Accept CSV text in a JSON body, check, save, return | Must | `POST /api/check` | `app/server/routes/check.js` | `tests/api.test.js` | planned |
-| FR-02 | Hand-written CSV parse and row validation | Must | CSV parser | `app/server/parse/csv.js` | `tests/parse.test.js` | planned |
-| FR-03 | Missing or malformed date or time reported | Must | Rule `DATA_BAD_ROW` | `app/server/parse/validate.js` | `tests/parse.test.js` | planned |
-| FR-04 | Exact duplicate reported once, excluded from other rules | Must | Rule `DUPLICATE_ROW` | `app/server/rules/duplicate.js` | `tests/rules.test.js` | planned |
-| FR-05 | Same-store overlap; all pairs incl. nested and 3-way; truncation flag | Must | Rule `OVERLAP` | `app/server/rules/overlap.js` | `tests/rules.test.js` (seed pair, nested, 3-way, cap) | planned |
-| FR-06 | Cross-store overlap names both stores | Must | Rule `OVERLAP` (cross-store) | `app/server/rules/overlap.js` | `tests/rules.test.js` | planned |
-| FR-07 | Touching shifts are not an overlap | Must | Rule `OVERLAP` boundary | `app/server/rules/overlap.js` | `tests/rules.test.js` (end = start) | planned |
-| FR-08 | Shift on approved leave | Must | Rule `ON_LEAVE` | `app/server/rules/leave.js` | `tests/rules.test.js` | planned |
-| FR-09 | Under 11h rest; exactly 11h allowed | Must | Rule `SHORT_REST` | `app/server/rules/rest.js` | `tests/rules.test.js` | planned |
-| FR-10 | Finding fields: rule, severity, employee, shifts, message | Must | Response `findings[]` | `app/server/rules/index.js` | `tests/api.test.js` | planned |
-| FR-11 | Summary with counts, skipped rows, truncated, clear, saved | Must | Response `summary` | `app/server/routes/check.js` | `tests/api.test.js` | planned |
-| FR-12 | Unknown employee or store ID reported | Must | Rule `UNKNOWN_REF` | `app/server/parse/validate.js` | `tests/parse.test.js` | planned |
-| FR-13 | Shared key required in `Authorization: Bearer` header | Must | Auth middleware | `app/server/auth.js` | `tests/api.test.js` (missing, wrong, right key; wrong scheme; also on history routes) | planned |
-| FR-14 | React dashboard: manual key entry, load files, red/green banner, severity badges, findings table | Must | Single-page UI | `app/client/src/App.jsx` | manual (demo checklist) + `tests/security.test.js` (source scan) | planned |
-| FR-15 | Deterministic fix hints | Should | Hint templates | `app/server/rules/hints.js` | `tests/hints.test.js` | planned |
-| FR-16 | Seed data gives exactly the 6 planted problems, no false positives | Should | Seed run | `case/seed/` | `tests/seed.test.js` | planned |
-| FR-17 | Result independent of row order | Should | Sorting in rules | `app/server/rules/index.js` | `tests/rules.test.js` | planned |
+| FR-01 | Accept CSV text in a JSON body, check, save, return | Must | `POST /api/check` | `app/server/routes/check.js` | `app/tests/api.test.js` | planned |
+| FR-02 | Hand-written CSV parse and row validation | Must | CSV parser | `app/server/parse/csv.js` | `app/tests/parse.test.js` | planned |
+| FR-03 | Missing or malformed date or time reported | Must | Rule `DATA_BAD_ROW` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | planned |
+| FR-04 | Exact duplicate reported once, excluded from other rules | Must | Rule `DUPLICATE_ROW` | `app/server/rules/duplicate.js` | `app/tests/rules.test.js` | planned |
+| FR-05 | Same-store overlap; all pairs incl. nested and 3-way; truncation flag | Must | Rule `OVERLAP` | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (seed pair, nested, 3-way, cap) | planned |
+| FR-06 | Cross-store overlap names both stores | Must | Rule `OVERLAP` (cross-store) | `app/server/rules/overlap.js` | `app/tests/rules.test.js` | planned |
+| FR-07 | Touching shifts are not an overlap | Must | Rule `OVERLAP` boundary | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (end = start) | planned |
+| FR-08 | Shift on approved leave | Must | Rule `ON_LEAVE` | `app/server/rules/leave.js` | `app/tests/rules.test.js` | planned |
+| FR-09 | Under 11h rest; exactly 11h allowed | Must | Rule `SHORT_REST` | `app/server/rules/rest.js` | `app/tests/rules.test.js` | planned |
+| FR-10 | Finding fields: rule, severity, employee, shifts, message | Must | Response `findings[]` | `app/server/rules/index.js` | `app/tests/api.test.js` | planned |
+| FR-11 | Summary with counts, skipped rows, truncated, clear, saved | Must | Response `summary` | `app/server/routes/check.js` | `app/tests/api.test.js` | planned |
+| FR-12 | Unknown employee or store ID reported | Must | Rule `UNKNOWN_REF` | `app/server/parse/validate.js` | `app/tests/parse.test.js` | planned |
+| FR-13 | Shared key required in `Authorization: Bearer` header | Must | Auth middleware | `app/server/auth.js` | `app/tests/api.test.js` (missing, wrong, right key; wrong scheme; also on history routes) | planned |
+| FR-14 | React dashboard: manual key entry, load files, red/green banner, severity badges, findings table | Must | Single-page UI | `app/client/src/App.jsx` | manual (demo checklist) + `app/tests/security.test.js` (source scan) | planned |
+| FR-15 | Deterministic fix hints | Should | Hint templates | `app/server/rules/hints.js` | `app/tests/hints.test.js` | planned |
+| FR-16 | Seed data gives exactly the 6 planted problems, no false positives | Should | Seed run | `case/seed/` | `app/tests/seed.test.js` | planned |
+| FR-17 | Result independent of row order | Should | Sorting in rules | `app/server/rules/index.js` | `app/tests/rules.test.js` | planned |
 | FR-18 | Dashboard filter by rule or severity | Should | Results filter | `app/client/src/App.jsx` | manual | planned |
 | FR-19 | Dashboard download findings as JSON | Should | Download button | `app/client/src/App.jsx` | manual | planned |
-| FR-20 | Optional AI explanation, off by default | Could | Explain step, `AI_MODE` | `app/server/explain.js` | `tests/explain.test.js` | planned |
+| FR-20 | Optional AI explanation, off by default | Could | Explain step, `AI_MODE` | `app/server/explain.js` | `app/tests/explain.test.js` | planned |
 | FR-21 | Dashboard sample-data button loads the seed files in one click | Must | Sample button | `app/client/src/App.jsx` | manual (demo checklist) | planned |
-| FR-22 | Rest hours and leave statuses by env var | Could | Config | `app/server/config.js` | `tests/config.test.js` | planned |
-| FR-23 | Save roster rows (no names), result and findings | Must | Persistence in `POST /api/check` | `app/server/models/*.js`, `app/server/routes/check.js` | `tests/db.test.js` (round trip; no names stored) | planned |
-| FR-24 | List saved results, newest first | Must | `GET /api/results` | `app/server/routes/results.js` | `tests/db.test.js` | planned |
-| FR-25 | Open one saved result; 404 if missing | Must | `GET /api/results/:id` | `app/server/routes/results.js` | `tests/db.test.js` | planned |
-| FR-26 | Delete a saved result | Should | `DELETE /api/results/:id` | `app/server/routes/results.js` | `tests/db.test.js` | planned |
+| FR-22 | Rest hours and leave statuses by env var | Could | Config | `app/server/config.js` | `app/tests/config.test.js` | planned |
+| FR-23 | Save roster rows (no names), result and findings | Must | Persistence in `POST /api/check` | `app/server/models/*.js`, `app/server/routes/check.js` | `app/tests/db.test.js` (round trip; no names stored) | planned |
+| FR-24 | List saved results, newest first | Must | `GET /api/results` | `app/server/routes/results.js` | `app/tests/db.test.js` | planned |
+| FR-25 | Open one saved result; 404 if missing | Must | `GET /api/results/:id` | `app/server/routes/results.js` | `app/tests/db.test.js` | planned |
+| FR-26 | Delete a saved result | Should | `DELETE /api/results/:id` | `app/server/routes/results.js` | `app/tests/db.test.js` | planned |
 | FR-27 | Dashboard History list; reopen a saved result | Must | History list | `app/client/src/App.jsx` | manual | planned |
-| NFR-S1 | Key compared in constant time; never logged or returned | Must | Auth middleware, logger | `app/server/auth.js` | `tests/security.test.js` (key absent from every response body and captured log output, including 401 and 500) | planned |
-| NFR-S2 | No secrets in code or git; key not in frontend source or build | Must | `.env.example`, `.gitignore`, Vite build | `.env.example`, `app/client/` | `tests/security.test.js` (client source has no `ACCESS_KEY` or `VITE_` key use; built files don't contain the test key) + secret grep (in `/final`) | planned |
-| NFR-S3 | Size limit, validation, safe IDs in queries | Must | Body limit, validation | `app/server/index.js`, `app/server/routes/results.js` | `tests/api.test.js` (bad ID, object in body) | planned |
+| NFR-S1 | Key compared in constant time; never logged or returned | Must | Auth middleware, logger | `app/server/auth.js` | `app/tests/security.test.js` (key absent from every response body and captured log output, including 401 and 500) | planned |
+| NFR-S2 | No secrets in code or git; key not in frontend source or build | Must | `.env.example`, `.gitignore`, Vite build | `.env.example`, `app/client/` | `app/tests/security.test.js` (client source has no `ACCESS_KEY` or `VITE_` key use; built files don't contain the test key) + secret grep (in `/final`) | planned |
+| NFR-S3 | Size limit, validation, safe IDs in queries | Must | Body limit, validation | `app/server/index.js`, `app/server/routes/results.js` | `app/tests/api.test.js` (bad ID, object in body) | planned |
 | NFR-S4 | No outside calls, short dependency list | Must | Whole app | `app/package.json` | manual review (section 4) | planned |
-| NFR-S5 | Findings shown as text, not HTML | Must | React rendering | `app/client/src/App.jsx` | `tests/security.test.js` (no `dangerouslySetInnerHTML`) + manual | planned |
-| NFR-S6 | Key in frontend memory only | Must | React state | `app/client/src/App.jsx` | `tests/security.test.js` (no `localStorage`, `sessionStorage` or `document.cookie`) + manual reload check | planned |
+| NFR-S5 | Findings shown as text, not HTML | Must | React rendering | `app/client/src/App.jsx` | `app/tests/security.test.js` (no `dangerouslySetInnerHTML`) + manual | planned |
+| NFR-S6 | Key in frontend memory only | Must | React state | `app/client/src/App.jsx` | `app/tests/security.test.js` (no `localStorage`, `sessionStorage` or `document.cookie`) + manual reload check | planned |
 | NFR-S7 | HTTP-only demo notice; only port 3000 published; Mongo port never published | Must | Compose `ports`, dashboard banner, README | `docker-compose.yml`, `app/client/src/App.jsx`, `README.md` | manual deploy check (section 4) | planned |
-| NFR-S8 | DB credentials only server-side, never in responses or logs | Must | Config, logger, error handler | `app/server/config.js`, `app/server/db.js` | `tests/security.test.js`, `tests/db.test.js` (URI and password absent from responses and logs, including a connection failure) | planned |
-| NFR-P1 | No names in logs | Must | Logger | `app/server/logger.js` | `tests/logging.test.js` | planned |
-| NFR-P2 | Minimal stored data, no names | Must | Mongoose schemas | `app/server/models/*.js` | `tests/db.test.js` (stored documents contain no name, role or hours) | planned |
-| NFR-P3 | No names sent to AI | Could | Explain payload | `app/server/explain.js` | `tests/explain.test.js` | planned |
-| NFR-P4 | IDs only in the dashboard | Must | Response shape | `app/server/rules/index.js` | `tests/api.test.js` | planned |
-| NFR-P5 | Expiry on every stored record | Must | TTL index on `expiresAt` | `app/server/models/*.js` | `tests/db.test.js` (TTL index exists, `expiresAt` set from `RETENTION_DAYS`) | planned |
-| NFR-F1 | ~150 shifts in under 2s, including saving | Must | Whole check | `app/server/routes/check.js` | `tests/perf.test.js` | planned |
-| NFR-F2 | Sweep-line overlap, O(n log n + k) | Must | Group, sort, active set | `app/server/rules/overlap.js` | `tests/rules.test.js` (nested, 3-way, touching, same-start, cap) + `tests/perf.test.js` | planned |
-| NFR-F3 | Request size limit | Must | Body parser limit | `app/server/index.js` | `tests/api.test.js` | planned |
-| NFR-R1 | Bad input returns a clear 4xx, no crash | Must | Error handler | `app/server/index.js` | `tests/api.test.js` | planned |
-| NFR-R2 | `GET /health` with database state | Must | Health route | `app/server/index.js` | `tests/api.test.js` | planned |
-| NFR-R3 | Structured logging | Must | Logger | `app/server/logger.js` | `tests/logging.test.js` | planned |
-| NFR-R4 | Same input, same output and order | Must | Whole check | `app/server/rules/index.js` | `tests/rules.test.js` | planned |
-| NFR-R5 | AI failure falls back to template | Could | Explain step | `app/server/explain.js` | `tests/explain.test.js` | planned |
-| NFR-R6 | Config from env vars only | Must | Config | `app/server/config.js` | `tests/config.test.js` | planned |
+| NFR-S8 | DB credentials only server-side, never in responses or logs | Must | Config, logger, error handler | `app/server/config.js`, `app/server/db.js` | `app/tests/security.test.js`, `app/tests/db.test.js` (URI and password absent from responses and logs, including a connection failure) | planned |
+| NFR-P1 | No names in logs | Must | Logger | `app/server/logger.js` | `app/tests/logging.test.js` | planned |
+| NFR-P2 | Minimal stored data, no names | Must | Mongoose schemas | `app/server/models/*.js` | `app/tests/db.test.js` (stored documents contain no name, role or hours) | planned |
+| NFR-P3 | No names sent to AI | Could | Explain payload | `app/server/explain.js` | `app/tests/explain.test.js` | planned |
+| NFR-P4 | IDs only in the dashboard | Must | Response shape | `app/server/rules/index.js` | `app/tests/api.test.js` | planned |
+| NFR-P5 | Expiry on every stored record | Must | TTL index on `expiresAt` | `app/server/models/*.js` | `app/tests/db.test.js` (TTL index exists, `expiresAt` set from `RETENTION_DAYS`) | planned |
+| NFR-F1 | ~150 shifts in under 2s, including saving | Must | Whole check | `app/server/routes/check.js` | `app/tests/perf.test.js` | planned |
+| NFR-F2 | Sweep-line overlap, O(n log n + k) | Must | Group, sort, active set | `app/server/rules/overlap.js` | `app/tests/rules.test.js` (nested, 3-way, touching, same-start, cap) + `app/tests/perf.test.js` | planned |
+| NFR-F3 | Request size limit | Must | Body parser limit | `app/server/index.js` | `app/tests/api.test.js` | planned |
+| NFR-R1 | Bad input returns a clear 4xx, no crash | Must | Error handler | `app/server/index.js` | `app/tests/api.test.js` | planned |
+| NFR-R2 | `GET /health` with database state | Must | Health route | `app/server/index.js` | `app/tests/api.test.js` (`db` field added in M4) | implemented |
+| NFR-R3 | Structured logging | Must | Logger | `app/server/logger.js` | `app/tests/api.test.js` (no-names check still to add) | implemented |
+| NFR-R4 | Same input, same output and order | Must | Whole check | `app/server/rules/index.js` | `app/tests/rules.test.js` | planned |
+| NFR-R5 | AI failure falls back to template | Could | Explain step | `app/server/explain.js` | `app/tests/explain.test.js` | planned |
+| NFR-R6 | Config from env vars only | Must | Config | `app/server/config.js` | `app/tests/api.test.js` (config describe block) | verified |
 | NFR-R7 | Containers restart | Must | Compose restart policy | `docker-compose.yml` | manual (deploy check) | planned |
-| NFR-R8 | A test per testable requirement, run before each commit; manual checks listed with reasons | Must | Test suite | `tests/` | this table and section 4 | planned |
-| NFR-R9 | Database failure: check still returns findings; history gives 503 | Must | Persistence error handling | `app/server/db.js`, `app/server/routes/check.js` | `tests/db.test.js` (unreachable database) | planned |
+| NFR-R8 | A test per testable requirement, run before each commit; manual checks listed with reasons | Must | Test suite | `app/tests/` | this table and section 4 | planned |
+| NFR-R9 | Database failure: check still returns findings; history gives 503 | Must | Persistence error handling | `app/server/db.js`, `app/server/routes/check.js` | `app/tests/db.test.js` (unreachable database) | planned |
 | NFR-R10 | Saved results survive a restart | Must | Named volume for MongoDB | `docker-compose.yml` | manual deploy check (section 4) | planned |
 | NFR-R11 | Tests run on every push | Should | GitHub Actions workflow | `.github/workflows/test.yml` | the workflow run itself (green check on GitHub) | planned |
 
