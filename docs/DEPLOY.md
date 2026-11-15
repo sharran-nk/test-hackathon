@@ -78,7 +78,7 @@ curl.exe -s http://<ip>:3000/health
 
 ## 6. Open the dashboard and load the sample data
 
-1. Open  in a browser. The workforce portal landing page appears.
+1. Open `http://<ip>:3000` in a browser. The workforce portal landing page appears.
 2. Choose the manager sign-in. The password is the access key from step 3.
 3. On the upload screen click **Use sample data**, then **Run validation**.
 
