@@ -139,7 +139,7 @@ All paths are **proposed**. Nothing is built yet. Correct the File and Test colu
 | FR-13 | Shared key required in `Authorization: Bearer` header | Must | Auth middleware | `app/server/auth.js` | `app/tests/api.test.js` (missing, wrong, right key; wrong scheme; also on history routes) | implemented |
 | FR-14 | React dashboard: manual key entry, load files, red/green banner, severity badges, findings table | Must | Single-page UI | `app/client/src/App.jsx` | manual (demo checklist) + `app/tests/security.test.js` (source scan) | planned |
 | FR-15 | Deterministic fix hints | Should | Hint templates | `app/server/rules/hints.js` | `app/tests/hints.test.js` | planned |
-| FR-16 | Seed data gives exactly the 6 planted problems, no false positives | Should | Seed run | `case/seed/` | `app/tests/seed.test.js` | planned |
+| FR-16 | Seed data gives exactly the 6 planted problems, no false positives | Should | Seed run | `case/seed/` | `app/tests/seed.test.js` (exactly 6 findings through the API) | verified |
 | FR-17 | Result independent of row order | Should | Sorting in rules | `app/server/rules/index.js` | `app/tests/rules.test.js` | verified |
 | FR-18 | Dashboard filter by rule or severity | Should | Results filter | `app/client/src/App.jsx` | manual | planned |
 | FR-19 | Dashboard download findings as JSON | Should | Download button | `app/client/src/App.jsx` | manual | planned |

@@ -146,6 +146,7 @@ describe('unexpected errors', () => {
     const capture = { info: (m, f) => lines.push(JSON.stringify([m, f])), warn() {}, error() {} };
     await post(good, KEY, createApp(config, { logger: capture }));
     expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('"/api/check"');
     expect(lines[0]).not.toMatch(new RegExp(`${KEY}|Priya|E001|A1`));
   });
 });

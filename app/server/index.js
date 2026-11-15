@@ -21,7 +21,7 @@ function createApp(config, { logger = createLogger() } = {}) {
       logger.info('request', {
         requestId: req.id,
         method: req.method,
-        path: req.path,
+        path: req.baseUrl + req.path, // baseUrl is "/api" inside the mounted routers; no query string, so no data
         status: res.statusCode,
         ms: Date.now() - started,
       });
