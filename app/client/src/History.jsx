@@ -1,42 +1,30 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { IconError, IconHistory } from './Icons.jsx';
+import { IconBack, IconHistory, IconTrash } from './Icons.jsx';
 import { ResultsScreen } from './Results.jsx';
 import { deleteHistory, getHistory, listHistory } from './api.js';
 import { apiOutcome, formatDate } from './session.js';
+import { Badge, Button, Dialog, EmptyState, ErrorState, PageHeader, SearchInput, Skeleton } from './ui.jsx';
 
-// Manager's saved checks. Three states per request: loading, error (with retry), and the data
-// (or an empty list). Everything from the server is shown as plain text.
+// Saved checks. Three states per request: loading, error (with retry), and the data.
 
 const PAGE_SIZE = 10;
-
-function Problem({ text, onRetry }) {
-  return (
-    <div className="alert" role="alert">
-      <IconError size={18} />
-      <span>{text}</span>
-      {onRetry && <button type="button" className="btn" onClick={onRetry}>Try again</button>}
-    </div>
-  );
-}
-
 const totalFindings = (summary) => Object.values((summary && summary.counts) || {}).reduce((a, b) => a + b, 0);
 
 // Pure view of the list, so it can be rendered in tests without a network.
-export function HistoryList({ state, onOpen, onPage, onRetry }) {
-  if (state.status === 'loading') return <p className="muted" role="status">Loading saved checks…</p>;
-  if (state.status === 'error') return <Problem text={state.text} onRetry={onRetry} />;
+// `query` narrows the rows of the current page by date, status or count.
+export function HistoryList({ state, onOpen, onPage, onRetry, query = '' }) {
+  if (state.status === 'loading') return <Skeleton rows={4} label="Loading saved checks…" />;
+  if (state.status === 'error') return <ErrorState text={state.text} onRetry={onRetry} />;
   const { items, page, pages, total } = state.data;
   if (total === 0) {
-    return (
-      <div className="placeholder">
-        <IconHistory size={28} />
-        <div>
-          <h2>No saved checks yet</h2>
-          <p className="muted">Each roster you validate is saved here for 30 days so you can reopen it.</p>
-        </div>
-      </div>
-    );
+    return <EmptyState icon={IconHistory} title="No saved checks yet" text="Each roster you validate is saved here for 30 days so you can reopen it." />;
   }
+  const q = query.trim().toLowerCase();
+  const shown = items.filter((r) => {
+    if (!q) return true;
+    const status = r.summary && r.summary.clear ? 'clear' : 'not clear';
+    return `${formatDate(r.createdAt)} ${status} ${totalFindings(r.summary)} ${r.id}`.toLowerCase().includes(q);
+  });
   return (
     <>
       <div className="table-wrap">
@@ -48,36 +36,46 @@ export function HistoryList({ state, onOpen, onPage, onRetry }) {
               <th scope="col">Status</th>
               <th scope="col">Findings</th>
               <th scope="col">Shifts checked</th>
+              <th scope="col">Saved</th>
               <th scope="col"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
-            {items.map((r) => (
-              <tr key={r.id}>
-                <td className="nowrap">{formatDate(r.createdAt)}</td>
-                <td>{r.summary && r.summary.clear ? 'Clear' : 'Not clear'}</td>
-                <td>{totalFindings(r.summary)}</td>
-                <td>{r.summary ? r.summary.shiftsChecked : ''}</td>
-                <td><button type="button" className="btn" onClick={() => onOpen(r.id)}>View</button></td>
-              </tr>
-            ))}
+            {shown.length === 0 ? (
+              <tr><td colSpan={6} className="td-empty">No checks on this page match your search.</td></tr>
+            ) : shown.map((r) => {
+              const clear = r.summary && r.summary.clear;
+              return (
+                <tr key={r.id}>
+                  <td className="nowrap">{formatDate(r.createdAt)}</td>
+                  <td><Badge tone={clear ? 'ok' : 'bad'}>{clear ? 'Clear' : 'Not clear'}</Badge></td>
+                  <td>{totalFindings(r.summary)}</td>
+                  <td>{r.summary ? r.summary.shiftsChecked : ''}</td>
+                  <td><Badge tone="neutral">Saved</Badge></td>
+                  <td className="c-more"><button type="button" className="btn btn-sm" onClick={() => onOpen(r.id)}>View</button></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-      <div className="row" aria-label="Pages">
-        <button type="button" className="btn" disabled={page <= 1} onClick={() => onPage(page - 1)}>Previous</button>
+      <div className="pager" aria-label="Pages">
+        <button type="button" className="btn btn-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>Previous</button>
         <span className="muted">Page {page} of {pages} · {total} saved</span>
-        <button type="button" className="btn" disabled={page >= pages} onClick={() => onPage(page + 1)}>Next</button>
+        <button type="button" className="btn btn-sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>Next</button>
       </div>
     </>
   );
 }
 
 // `onEnd(outcome)` is called when the server says the session is over (401), so App can sign out.
-export function HistoryScreen({ token, onEnd }) {
+// `notify(tone, text)` shows a toast.
+export function HistoryScreen({ token, onEnd, notify }) {
   const [page, setPage] = useState(1);
+  const [query, setQuery] = useState('');
   const [list, setList] = useState({ status: 'loading' });
-  const [open, setOpen] = useState(null); // { status, id, data?, text?, confirming?, busy? }
+  const [open, setOpen] = useState(null); // { status, id, data?, text?, busy? }
+  const [confirm, setConfirm] = useState(false);
 
   const fail = useCallback((outcome) => {
     if (outcome.kind === 'expired') onEnd(outcome);
@@ -116,55 +114,61 @@ export function HistoryScreen({ token, onEnd }) {
       const { status, body } = await deleteHistory(token, open.id);
       const outcome = apiOutcome(status, body);
       if (outcome.kind === 'ok' || status === 404) {
+        setConfirm(false);
         setOpen(null);
+        if (notify) notify('ok', 'Saved check deleted.');
         loadList(page);
       } else {
-        setOpen((o) => ({ ...o, busy: false, confirming: false, deleteError: fail(outcome) }));
+        setConfirm(false);
+        setOpen((o) => ({ ...o, busy: false }));
+        if (notify) notify('bad', fail(outcome));
       }
     } catch {
-      setOpen((o) => ({ ...o, busy: false, confirming: false, deleteError: 'Could not reach the server. Check your connection.' }));
+      setConfirm(false);
+      setOpen((o) => ({ ...o, busy: false }));
+      if (notify) notify('bad', 'Could not reach the server. Check your connection.');
     }
   }
 
   if (open) {
     return (
       <section className="page">
-        <div className="page-head">
-          <h1>Saved check</h1>
-          <button type="button" className="btn" onClick={() => setOpen(null)}>Back to history</button>
-        </div>
-        {open.status === 'loading' && <p className="muted" role="status">Loading result…</p>}
-        {open.status === 'error' && <Problem text={open.text} onRetry={() => openResult(open.id)} />}
-        {open.status === 'ready' && (
-          <>
-            <p className="muted">
-              Checked {formatDate(open.data.createdAt)} · {open.data.roster.employees} employees, {open.data.roster.shifts} shifts, {open.data.roster.leave} leave rows.
-            </p>
-            {open.deleteError && <Problem text={open.deleteError} />}
-            <div className="row">
-              {open.confirming ? (
-                <>
-                  <span>Delete this saved check and its roster? This cannot be undone.</span>
-                  <button type="button" className="btn btn-danger" disabled={open.busy} onClick={remove}>
-                    {open.busy ? 'Deleting…' : 'Yes, delete'}
-                  </button>
-                  <button type="button" className="btn" disabled={open.busy} onClick={() => setOpen((o) => ({ ...o, confirming: false }))}>Cancel</button>
-                </>
-              ) : (
-                <button type="button" className="btn btn-danger" onClick={() => setOpen((o) => ({ ...o, confirming: true, deleteError: null }))}>Delete this check</button>
-              )}
-            </div>
-            <ResultsScreen result={open.data} files={null} onGo={() => {}} />
-          </>
-        )}
+        <PageHeader
+          crumbs="Roster History"
+          title="Saved check"
+          lead={open.status === 'ready' ? `Checked ${formatDate(open.data.createdAt)} · ${open.data.roster.employees} employees, ${open.data.roster.shifts} shifts, ${open.data.roster.leave} leave rows.` : undefined}
+          actions={(
+            <>
+              <Button icon={IconBack} onClick={() => setOpen(null)}>Back to history</Button>
+              {open.status === 'ready' && <Button variant="danger" icon={IconTrash} onClick={() => setConfirm(true)}>Delete</Button>}
+            </>
+          )}
+        />
+        {open.status === 'loading' && <Skeleton rows={5} label="Loading result…" />}
+        {open.status === 'error' && <ErrorState text={open.text} onRetry={() => openResult(open.id)} />}
+        {open.status === 'ready' && <ResultsScreen result={open.data} files={null} onGo={() => {}} embedded />}
+        <Dialog
+          open={confirm}
+          tone="danger"
+          title="Delete this saved check?"
+          onClose={() => { if (!open.busy) setConfirm(false); }}
+          actions={(
+            <>
+              <Button onClick={() => setConfirm(false)} disabled={open.busy}>Cancel</Button>
+              <Button variant="danger" onClick={remove} disabled={open.busy}>{open.busy ? 'Deleting…' : 'Delete check'}</Button>
+            </>
+          )}
+        >
+          <p>The check, its findings and the roster rows it was made from are removed. This cannot be undone.</p>
+        </Dialog>
       </section>
     );
   }
 
   return (
     <section className="page">
-      <h1>Roster History</h1>
-      <HistoryList state={list} onOpen={openResult} onPage={setPage} onRetry={() => loadList(page)} />
+      <PageHeader title="Roster History" lead="Every check is kept for 30 days." actions={<SearchInput value={query} onChange={setQuery} placeholder="Search this page" label="Search saved checks" />} />
+      <HistoryList state={list} onOpen={openResult} onPage={setPage} onRetry={() => loadList(page)} query={query} />
     </section>
   );
 }

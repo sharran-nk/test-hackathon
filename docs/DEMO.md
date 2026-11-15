@@ -25,7 +25,7 @@ Open `http://localhost:3000` (or `APP_PORT`). For development with hot reload, s
 
 ## Five-minute walkthrough
 
-1. **Landing.** Two cards, Employee Login and Manager Login, and the amber footer "Demo over unencrypted HTTP. Use fictional data only." on every screen.
+1. **Sign-in.** A split screen: the GroceryOps panel on the left, the Manager Login and Employee Login cards on the right, and the amber footer "Demo over unencrypted HTTP. Use fictional data only." on every screen.
 2. **Manager login.** Manager Login, username `manager`, the password. The manager portal opens on the Dashboard.
 3. **Upload and validate.** Upload Roster, **Use sample data**, **Run validation**. The result shows "Not clear to publish" and exactly six findings:
 
@@ -40,64 +40,67 @@ Open `http://localhost:3000` (or `APP_PORT`). For development with hot reload, s
 
    The tabs show All 6, Overlap 2, Rest 1, Leave 1, Data 2 (the duplicate and the bad row are data findings).
 4. **History.** Roster History lists the check. View opens it again with the same six findings. (Delete asks for confirmation.)
-5. **Logout**, then **Employee Login** as `E003`. "My schedule" shows E003's own shifts and the one finding (Short rest). Nobody else's data appears. Log out.
+5. **Logout**, then **Employee Login** as `E003`. "My schedule" shows E003's tiles, next shift, own shifts and the one finding (Short rest) under Needs attention. Nobody else's data appears. Log out.
 6. **Wrong role.** On Employee Login try `manager` and its password: it is refused ("That is a manager account. Use Manager Login instead.").
 7. **Outage (optional, shows fail closed).** `docker compose stop mongo`. Reload and try to log in: "Sign-in is unavailable ... database". A manager already signed in who runs a check gets the same kind of message, **not** findings. `docker compose start mongo` and it works again without restarting the app.
 
-## A. Portal checklist
+## A. Portal checklist (GroceryOps redesign)
 
-Try it on a wide window and at about 360 px.
+Try it on a wide window, at about 800 px (tablet) and at about 360 px (phone). The screens were rendered to HTML and the API calls replayed in Node; **nobody has clicked through them in a browser yet.**
 
-**Landing and sign-in**
-- [ ] A small logo and "FreshMart" sit above two cards, "Employee Login" and "Manager Login". The amber footer is on every screen below.
-- [ ] Manager Login opens "Manager sign-in" with a Username field (pre-filled `manager`) and a masked Password field. Employee Login opens "Employee sign-in" with an Employee ID field (empty).
-- [ ] Empty fields: "Enter your username and password."
-- [ ] Wrong password: "Invalid username or password." and the password box is empty again. An unknown username gives the same message.
-- [ ] Correct manager login opens the manager portal. Correct employee login opens the employee portal.
+**Sign-in (split screen)**
+- [ ] Left: a green GroceryOps panel with the tagline, a store floor-plan drawing and three points. Right: "Sign in to GroceryOps" with two cards, Manager Login and Employee Login. Under about 860 px the left panel shrinks to the brand line and the cards stack.
+- [ ] Manager Login opens "Manager sign-in" with Username (pre-filled `manager`) and a masked Password with an eye button that shows and hides it. Employee Login opens "Employee sign-in" with Employee ID (empty). "All sign-in options" goes back.
+- [ ] Empty fields: "Enter your username and password." Wrong password: "Invalid username or password." in a red notice; the password box is empty again.
 - [ ] A manager account on Employee Login (and the reverse) is refused with a message naming the other login.
-- [ ] Stop the server and sign in: "Could not reach the server...". Stop only `mongo`: "Sign-in is unavailable ... database ...".
+- [ ] Stop the server and sign in: "Could not reach the server…". Stop only `mongo`: "Sign-in is unavailable … database …".
+- [ ] The amber footer "Demo over unencrypted HTTP. Use fictional data only." is at the bottom of every screen.
 
-**Manager portal shell**
-- [ ] Header shows the logo, "FreshMart" and "Manager portal". The sidebar lists Dashboard, Upload Roster, Validation Results, Roster History and Logout, with the current page marked. Under about 760 px it becomes a sideways-scrolling row.
+**Manager shell**
+- [ ] A white sidebar with GroceryOps / FreshMart, "Manager portal", and Dashboard, Upload Roster, Validation Results, Roster History, Logout. The current page has a green tint. The top bar has the profile button (initials, name) which opens a menu with the role and Logout; Escape or a click outside closes it.
+- [ ] Under about 900 px the sidebar disappears, a menu button appears in the top bar, and it opens a drawer with the same items; choosing one closes the drawer.
 
 **Dashboard**
-- [ ] Before any upload: four tiles with dashes and a "Go to Upload Roster" button. After choosing the sample files: Total employees 25 and Total shifts 156. After validating the sample: "Not clear", Conflicts detected 4 "plus 2 data issues".
+- [ ] Greeting by time of day, "Validate a roster" button. Before any upload: Employees and Shifts show "–", Findings and Critical show "–" with "Run a check to see", "No roster checked yet" with a button to Upload Roster, "Stores appear once the employees file is loaded", and "Recent validation activity" lists saved checks from the server (or "No saved checks yet").
+- [ ] After "Use sample data": Employees 25 with "2 stores", Shifts 156 with the date range, and the Stores card lists S01 and S02 with staff and shift counts.
+- [ ] After validating the sample: Findings 6 "4 roster, 2 data", Critical 4, a "Latest check" card with four bars (Overlap 2, Rest 1, Leave 1, Data quality 2), "Open the findings", and the new check at the top of Recent validation activity.
 
-**Upload Roster**
-- [ ] Three rows with "Choose file". "Use sample data" fills them (25, 156 and 5 rows) and says "Ready to validate."
-- [ ] An empty employees or shifts file, or a file over 1 MB, shows a red message next to that row. A shifts CSV with the wrong header then "Run validation": "The server could not use these files: shifts.csv is missing column(s) ...".
-- [ ] Stop the server and run validation: "Could not reach the server..." with "Try again", keeping the files. While validating the button reads "Validating…" and cannot be pressed twice.
+**Upload Roster (the centre of the product)**
+- [ ] Three drop zones: Employees file *, Shifts file *, Leave file (optional), each "Not added". Drag a CSV onto one: it turns green while hovering and shows a tick with the row count and file name. Clicking a zone opens the file picker; Tab to it and Enter also works.
+- [ ] "Use sample data" fills all three (25, 156, 5 rows). "Clear files" empties them. "CSV format reference" expands to the three column lists.
+- [ ] Empty employees or shifts file, or a file over 1 MB: a red message inside that zone and a red border. Wrong shifts header then Run validation: "The server could not use these files: shifts.csv is missing column(s) …".
+- [ ] While validating, the run bar shows the step list with "Reading files" lit and the button reads "Validating…" (cannot be pressed twice). After a check a toast says "Roster checked: 6 findings to fix." and the page jumps to Validation Results.
+- [ ] Stop the server and run validation: "Could not reach the server…" with "Try again" that keeps the files.
 
 **Validation Results**
-- [ ] With the sample, the result opens by itself: red bar "Not clear to publish: 4 problems and 2 data issues", count pills (Overlap 2, Rest 1, Leave 1, Data 2), tabs and all 6 rows without scrolling on a normal laptop screen. Match each of the 6 to `case/seed/README.md`.
-- [ ] Each row has an icon and the word "Error" or "Warning". The amber "Data quality" line expands to file and line.
-- [ ] Your own small CSVs with no problems: a green "Clear to publish".
-- [ ] If the check could not be saved (for example the database dropped during the save), an amber note says the result was not saved to history and the findings are still shown.
+- [ ] A red verdict strip "Not clear to publish: 4 problems and 2 data issues" with four count chips (zero counts dimmed). With a clean roster the strip is green "Clear to publish".
+- [ ] Tabs All 6 / Overlap 2 / Rest 1 / Leave 1 / Data 2 filter the table. The search box narrows by employee, shift, text or date (try `E007`, then `SH0`, then `leave`). "No findings match your search." when nothing matches.
+- [ ] Columns Issue, Severity, Employee, Shifts, Date, What happened. Issue, Severity, Employee and Date sort when their header is clicked (arrow flips on a second click). Every row has a severity badge.
+- [ ] "Fix" on a row opens a detail panel with the server's sentence and a "Recommended action"; "Hide" closes it. Match the six rows to `case/seed/README.md`.
+- [ ] The amber "Data quality" line expands to file and line. A result that was not saved shows an amber notice "not saved to history".
 
-**Roster History (manager)**
-- [ ] Empty history: "No saved checks yet". After a check: a row with date (UTC), Clear or Not clear, number of findings and shifts checked. 10 per page; Previous and Next work and are disabled at the ends ("Page 1 of 2").
-- [ ] View shows "Checked <date> · N employees, N shifts, N leave rows" and the findings. Delete asks "Delete this saved check and its roster?"; Cancel keeps it; confirming returns to the list without it.
-- [ ] With `mongo` stopped, the list shows an error with "Try again".
+**Roster History**
+- [ ] Loading shows grey placeholder bars with "Loading saved checks…". Empty: "No saved checks yet". Rows: date (UTC), a Clear / Not clear badge, finding count, shifts checked, a Saved badge and View. The search box on the page narrows the rows shown. Previous / Next with "Page 1 of N · N saved", disabled at the ends.
+- [ ] View shows "Saved check" with the counts in the lead, the verdict strip and the table (date column shows "–", description is the server's sentence). "Delete" opens a dialog "Delete this saved check?"; Escape, the X, the backdrop or Cancel close it; "Delete check" removes it, returns to the list and shows a toast "Saved check deleted."
+- [ ] With `mongo` stopped, the list shows a red notice with "Try again".
 
 **Employee portal**
-- [ ] Header "Employee portal · E003" and a Logout button, no manager menu. "Loading your schedule…" appears briefly.
-- [ ] "My shifts" (date, start, end, store, shift ID), "My leave" and "Problems with my shifts" show only this employee's rows. For E003 the problem is "Short rest: E003 has only 8h 0m rest between SH013 and SH021...". For E001 "No problems were found".
-- [ ] With no roster saved: "No roster yet". An employee not in the roster: empty tables with plain messages.
-- [ ] With `mongo` stopped: an error with "Try again".
+- [ ] Sidebar with "Employee portal" and "My schedule" only, the profile button with the employee ID, Logout. No manager items anywhere.
+- [ ] Four tiles: Shifts in this roster (with total hours), Upcoming (with the next date), Leave days, Needs attention (red when above zero). A "Next shift" line with the day, time, store and shift ID when a shift is on or after today.
+- [ ] "My shifts" lists only this employee's shifts; a shift involved in a finding has a red "Check" badge and past shifts are greyed with "Done". "My leave" shows the range and status. "Needs attention" lists each finding with the shift IDs, the sentence and "Speak to your manager…". For E003: Short rest; for E001: "No problems were found with your shifts."
+- [ ] With no roster saved: "No roster yet". With `mongo` stopped: a red notice with "Try again".
 
 **Logout and token handling**
-- [ ] Logout returns to the landing page; signing in again shows an empty Dashboard (files and results are gone).
-- [ ] After a successful sign-in, reload the page: you are on the landing page, signed out.
-- [ ] Browser dev tools, Application tab: Local storage, Session storage and Cookies are empty for this site. The address bar never shows a token or password.
-- [ ] Network tab: the only requests go to this same address (`/`, the JS and CSS, `/api/...`). No outside hosts. The token is only in the `Authorization` header.
-- [ ] In a second tab, log out; in the first tab click History: you are returned to sign-in with "Your session has ended. Sign in again."
+- [ ] Logout (sidebar or profile menu) returns to the sign-in choice with a toast "You are signed out." Signing in again shows an empty Dashboard (files and results are gone).
+- [ ] After a successful sign-in, reload the page: you are on the sign-in choice, signed out.
+- [ ] Browser dev tools, Application tab: Local storage, Session storage and Cookies are empty for this site. The address bar never shows a token or password. Network tab: only this address is called; the token is only in the `Authorization` header.
+- [ ] In a second tab, log out; in the first tab open History: you are returned to sign-in with "Your session has ended. Sign in again."
 
 **Text, not HTML**
 - [ ] A shifts file with a row such as `<b>x</b>,E001,S01,2026-11-16,09:00,17:00` shows the row as plain text, with no bold text.
 
 **Look and feel**
-- [ ] Body text 14px, table text 13px. Tab through every screen: every control shows a focus ring, and file buttons work with Enter or Space.
-- [ ] At about 360 px nothing scrolls the page sideways (tables scroll inside their own box). With "reduce motion" on, nothing changes except colour.
+- [ ] Body text 14px, table text 13px. Tab through every screen: every control shows a green focus ring; the drop zones and the password eye button work from the keyboard. At 360 px nothing scrolls the page sideways (tables scroll inside their box; KPI tiles stack). With "reduce motion" on, the skeleton shimmer and the progress pulse stop.
 
 ## B. Deployment checklist (Milestone 8, not done)
 - [ ] `http://<EC2 public IP>:3000/health` returns `{"status":"ok"}`, and a login works from another machine (this proves the database too, `/health` does not).

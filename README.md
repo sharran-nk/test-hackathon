@@ -38,7 +38,7 @@ app container (Node 22, non-root user "node")
                                    named volume mongo_data, NO published port
 ```
 
-- **React + Vite** single-page app, served by Express from the same container as the API.
+- **React + Vite** single-page app (`app/client/src`: `ui.jsx` is the design system, `Shell.jsx` the frame, one file per screen), served by Express from the same container as the API.
 - **Express** API. The validation rules are deterministic and do not touch the database.
 - **MongoDB + Mongoose** stores accounts and saved checks. Four collections:
 
@@ -86,7 +86,7 @@ The server keeps retrying the connection. Tested: with MongoDB stopped everythin
 
 - `POST /api/check`: hand-written CSV parsing and validation, then six rules: same-store overlap, cross-store overlap, shift on approved leave, rest under 11 hours, exact duplicate rows, malformed or unknown-reference rows.
 - Login for two roles, JWT, role checks, saved history with pagination and delete, an employee schedule endpoint.
-- React portal: landing page with Manager Login and Employee Login, manager dashboard, upload with a sample-data button, results table, history, employee portal, and the HTTP-only footer on every screen.
+- **GroceryOps** React portal: split-screen sign-in with Manager Login and Employee Login, a manager shell (sidebar, top bar with profile menu, mobile drawer), dashboard with KPI tiles, store overview and recent activity from the server, drag-and-drop roster upload with a format reference, a findings workbench (verdict strip, search, filters, sorting, recommended actions), paginated and searchable history with delete confirmation, an employee portal (next shift, upcoming shifts, leave, warnings), toasts, loading skeletons, and the HTTP-only footer on every screen. Icons are inline SVG in the Lucide style (no icon dependency; the client still depends only on React).
 - Docker Compose with an authenticated, private MongoDB.
 
 **Not built:** GitHub Actions, JSON download, filters beyond the result tabs, fix hints, AI explanations, password change or reset, login rate limiting, per-store permissions.

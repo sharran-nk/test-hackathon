@@ -1,11 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import { Landing, SignIn } from './Screens.jsx';
-import { Portal } from './Portal.jsx';
+import { MANAGER_MENU, Shell } from './Shell.jsx';
 import { Dashboard } from './Dashboard.jsx';
 import { UploadScreen } from './Upload.jsx';
 import { ResultsScreen } from './Results.jsx';
 import { HistoryScreen } from './History.jsx';
 import { EmployeePortal } from './EmployeePortal.jsx';
+import { Toasts, useToasts } from './ui.jsx';
 import { login, logout, runCheck } from './api.js';
 import { allowedScreen, apiOutcome, loginOutcome } from './session.js';
 import { NOTICE } from './brand.js';
@@ -47,6 +48,7 @@ export default function App({ initial = {} }) {
   const [checkedFiles, setCheckedFiles] = useState(null); // the files that result came from
   const [uploadNotice, setUploadNotice] = useState(null); // { where, text, retry? }
   const [busy, setBusy] = useState(false);
+  const [toasts, notify, dismiss] = useToasts();
 
   const shown = allowedScreen(session, screen);
 
@@ -75,6 +77,7 @@ export default function App({ initial = {} }) {
     clearAll();
     setSignInNotice('');
     setScreen('landing');
+    notify('info', 'You are signed out.');
     if (token) {
       try { await logout(token); } catch { /* the token expires by itself */ }
     }
@@ -138,6 +141,13 @@ export default function App({ initial = {} }) {
     setCheckedFiles(null);
   }
 
+  function clearFiles() {
+    setUploadNotice(null);
+    setFiles(EMPTY_FILES);
+    setResult(null);
+    setCheckedFiles(null);
+  }
+
   function useSample() {
     setUploadNotice(null);
     setFiles({
@@ -152,7 +162,7 @@ export default function App({ initial = {} }) {
   async function runValidation() {
     setUploadNotice(null);
     if (!files.employees || !files.shifts) {
-      setUploadNotice({ where: 'run', text: 'Choose the employees and shifts files first, or use the sample data.' });
+      setUploadNotice({ where: 'run', text: 'Add the employees and shifts files first, or use the sample data.' });
       return;
     }
     setBusy(true);
@@ -169,6 +179,9 @@ export default function App({ initial = {} }) {
         setResult(body);
         setCheckedFiles(files);
         setSection('results');
+        const n = body.findings.length;
+        notify(body.summary.clear ? 'ok' : 'warn', body.summary.clear ? 'Roster checked: clear to publish.' : `Roster checked: ${n} ${n === 1 ? 'finding' : 'findings'} to fix.`);
+        if (body.saved === false) notify('warn', 'The result was not saved to history.');
       } else if (outcome.kind === 'ok') {
         setUploadNotice({ where: 'run', text: 'The server answered in a way this page does not understand.', retry: true });
       } else {
@@ -199,21 +212,23 @@ export default function App({ initial = {} }) {
     );
   } else if (shown === 'manager') {
     content = (
-      <Portal section={section} onSection={setSection} onLogout={logoutNow}>
-        {section === 'dashboard' && <Dashboard files={files} result={result} onGo={setSection} />}
+      <Shell user={session.user} roleLabel="Manager portal" menu={MANAGER_MENU} section={section} onSection={setSection} onLogout={logoutNow}>
+        {section === 'dashboard' && <Dashboard files={files} result={result} onGo={setSection} token={session.token} onEnd={sessionEnded} user={session.user} />}
         {section === 'upload' && (
           <UploadScreen
             files={files}
             onFile={loadFile}
+            onClear={clearFiles}
             onSample={useSample}
             onRun={runValidation}
             busy={busy}
             notice={uploadNotice}
+            result={result}
           />
         )}
         {section === 'results' && <ResultsScreen result={result} files={checkedFiles} onGo={setSection} />}
-        {section === 'history' && <HistoryScreen token={session.token} onEnd={sessionEnded} />}
-      </Portal>
+        {section === 'history' && <HistoryScreen token={session.token} onEnd={sessionEnded} notify={notify} />}
+      </Shell>
     );
   } else if (shown === 'employee') {
     content = <EmployeePortal session={session} onLogout={logoutNow} onEnd={sessionEnded} />;
@@ -224,6 +239,7 @@ export default function App({ initial = {} }) {
   return (
     <div className="shell">
       <div className="shell-body">{content}</div>
+      <Toasts toasts={toasts} onDismiss={dismiss} />
       <footer className="foot">{NOTICE}</footer>
     </div>
   );

@@ -192,3 +192,36 @@ export function dataStripText(findings) {
   if (dup) parts.push(`${dup} duplicate ${dup === 1 ? 'row' : 'rows'} counted once`);
   return parts.length ? parts.join(', ') : 'All rows were read. None were skipped or repeated.';
 }
+
+// ---------- recommended action per rule (fixed text, no AI) ----------
+
+export const ACTION_FOR = {
+  OVERLAP: 'Move one shift, or end the first before the second starts.',
+  SHORT_REST: 'Start the second shift later, or give the first shift to someone else.',
+  ON_LEAVE: 'Reassign the shift, or confirm the leave was cancelled and update leave.csv.',
+  DUPLICATE_ROW: 'Delete the repeated row from shifts.csv.',
+  DATA_BAD_ROW: 'Fix the row in the file (see the message) and upload again.',
+  UNKNOWN_REF: 'Add the missing employee or store, or correct the ID in the row.',
+};
+
+export const GROUP_LABEL = { overlap: 'Overlap', rest: 'Rest', leave: 'Leave', data: 'Data quality' };
+
+// ---------- store overview from the loaded CSV text (display only) ----------
+// Stores are the distinct home_store values; shifts are counted per store_id. No names are read.
+export function storeSummary({ employees, shifts }) {
+  const staff = new Map();
+  for (const r of csvObjects(employees)) if (r.home_store) staff.set(r.home_store, (staff.get(r.home_store) || 0) + 1);
+  const shiftCount = new Map();
+  const dates = [];
+  for (const r of csvObjects(shifts)) {
+    if (r.store_id) shiftCount.set(r.store_id, (shiftCount.get(r.store_id) || 0) + 1);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(r.date || '')) dates.push(r.date);
+  }
+  const ids = [...new Set([...staff.keys(), ...shiftCount.keys()])].sort();
+  dates.sort();
+  return {
+    stores: ids.map((id) => ({ id, employees: staff.get(id) || 0, shifts: shiftCount.get(id) || 0 })),
+    from: dates[0] || null,
+    to: dates[dates.length - 1] || null,
+  };
+}
