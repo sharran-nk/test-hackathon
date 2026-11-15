@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Landing, EmployeeNotice, SignIn } from './Screens.jsx';
-import { IconLogout } from './Icons.jsx';
+import { Portal, HistoryScreen } from './Portal.jsx';
 import { NOTICE } from './brand.js';
+
+const EMPTY_FILES = { employees: null, shifts: null, leave: null };
+const SECTION_TITLE = { dashboard: 'Dashboard', upload: 'Upload Roster', results: 'Validation Results' };
 
 // One page, no router: `screen` decides what is shown. Everything lives in React state
 // (memory only). The access key is never written to browser storage, cookies or the URL,
@@ -28,6 +31,10 @@ export default function App() {
   const [accessKey, setAccessKey] = useState('');
   const [busy, setBusy] = useState(false);
   const [signInNotice, setSignInNotice] = useState('');
+  const [section, setSection] = useState('dashboard'); // dashboard | upload | results | history
+  const [files, setFiles] = useState(EMPTY_FILES); // { name, text } per slot, in memory only
+  const [result, setResult] = useState(null); // the last check result
+  const [checkedFiles, setCheckedFiles] = useState(null); // the files that result came from
 
   function go(next) {
     setSignInNotice('');
@@ -64,8 +71,12 @@ export default function App() {
   }
 
   function logout() {
-    // Everything held in memory is cleared: the key, and (in the portal) files and results.
+    // Everything held in memory is cleared: the key, the loaded files and the last result.
     setAccessKey('');
+    setFiles(EMPTY_FILES);
+    setResult(null);
+    setCheckedFiles(null);
+    setSection('dashboard');
     setSignInNotice('');
     setScreen('landing');
   }
@@ -86,10 +97,16 @@ export default function App() {
     );
   } else if (screen === 'portal') {
     content = (
-      <div className="narrow">
-        <p>Signed in.</p>
-        <button type="button" className="btn" onClick={logout}><IconLogout size={18} /> Logout</button>
-      </div>
+      <Portal section={section} onSection={setSection} onLogout={logout}>
+        {section === 'history' ? (
+          <HistoryScreen />
+        ) : (
+          <section className="page">
+            <h1>{SECTION_TITLE[section]}</h1>
+            <p className="muted">This screen is added in the next step.</p>
+          </section>
+        )}
+      </Portal>
     );
   } else {
     content = <Landing onEmployee={() => go('employee')} onManager={() => go('signin')} />;
