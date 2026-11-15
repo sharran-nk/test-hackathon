@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import sampleEmployees from './sample/employees.csv?raw';
 import sampleShifts from './sample/shifts.csv?raw';
 import sampleLeave from './sample/leave.csv?raw';
-import { Verdict, FindingsTable, DataQuality, HistoryPlaceholder } from './Results.jsx';
+import { Verdict, ResultsView, HistoryPlaceholder } from './Results.jsx';
 
 // One page, no router. Everything lives in React state (memory only): the access key is
 // never written to browser storage, cookies or the URL, so a reload asks for it again.
@@ -160,8 +160,7 @@ export default function App() {
         {result && (
           <>
             <Verdict summary={result.summary} />
-            <FindingsTable findings={result.findings} />
-            <DataQuality findings={result.findings} summary={result.summary} />
+            <ResultsView result={result} files={files} />
           </>
         )}
 
