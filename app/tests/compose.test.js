@@ -58,6 +58,10 @@ describe('docker-compose.yml', () => {
     expect(mongo).not.toMatch(/--noauth|--auth=false/);
   });
 
+  test('MongoDB cache is capped at 0.25 GB so it fits on a 1 GB host', () => {
+    expect(mongo).toMatch(/command: \["--wiredTigerCacheSizeGB", "0\.25"\]/);
+  });
+
   test('the app waits for a healthy MongoDB, has its health check and a restart policy', () => {
     expect(app).toMatch(/depends_on:\n\s+mongo:\n\s+condition: service_healthy/);
     expect(app).toContain('http://127.0.0.1:3000/health');

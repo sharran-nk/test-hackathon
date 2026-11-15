@@ -8,7 +8,7 @@ The demo is plain HTTP, so it must only ever hold the fictional seed data (see t
 
 ## 0. Before you start (AWS console)
 
-- Ubuntu 22.04 or 24.04 LTS, at least 2 GB of RAM (for example `t3.small`). A 1 GB instance can run out of memory during the build (section 9). MongoDB adds to memory use; this has not been measured.
+- Ubuntu 22.04 or 24.04 LTS, at least 2 GB of RAM (for example `t3.small`). A 1 GB instance can run out of memory during the build (section 9). MongoDB's cache is capped at 0.25 GB in `docker-compose.yml` (`--wiredTigerCacheSizeGB`), so it fits beside the app on 1 GB; real memory use on EC2 has not been measured yet.
 - Disk: 12 GB or more. MongoDB data and its image need room.
 - Security group, inbound only:
   - TCP 22 from **your IP only** (not 0.0.0.0/0).

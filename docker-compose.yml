@@ -5,6 +5,9 @@ services:
   mongo:
     image: mongo:7.0
     restart: unless-stopped
+    # Cap MongoDB's cache at 0.25 GB (its smallest allowed value) so it fits next to the app on a
+    # 1 GB host. Without this MongoDB sizes its cache from the machine's RAM.
+    command: ["--wiredTigerCacheSizeGB", "0.25"]
     environment:
       # Only used the FIRST time the volume is created. Changing them later does not change the
       # existing database user (see docs/DEPLOY.md).
