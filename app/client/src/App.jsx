@@ -223,7 +223,9 @@ export default function App() {
                 aria-label="Access key"
                 value={accessKey}
                 onChange={(e) => setAccessKey(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !loading) checkRoster(); }}
                 autoComplete="off"
+                spellCheck={false}
                 placeholder="Typed here, kept in memory only"
               />
               <Notice notice={notice} where="key" />
@@ -253,7 +255,7 @@ export default function App() {
               <StepHeading n={3} title="Check roster" done={false} />
               <div className="go-row">
                 <button type="button" className="primary go" onClick={checkRoster} disabled={loading}>
-                  {loading ? 'Checking...' : 'Check roster'}
+                  {loading ? 'Checking…' : 'Check roster'}
                 </button>
                 <span className="small muted">
                   {missing.length === 0 ? 'Ready to check.' : `Still needed: ${missing.join(', ')}.`}
@@ -279,7 +281,7 @@ export default function App() {
 
         {loading && (
           <section className="skeleton" role="status" aria-busy="true">
-            <span className="sr-only">Checking the roster...</span>
+            <span className="sr-only">Checking the roster…</span>
             <div className="sk sk-title" />
             <div className="sk sk-line" />
             <div className="sk-row"><div className="sk sk-num" /><div className="sk sk-num" /><div className="sk sk-num" /><div className="sk sk-num" /></div>
